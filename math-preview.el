@@ -130,10 +130,13 @@
     (unless proc
       (math-preview--overlays-remove-processing)
       (setq math-preview--queue nil)
-      (setq proc (start-process "math-preview" nil (f-full math-preview-command)))
-      (unless proc
-        (error "Cannot start process"))
-      (set-process-filter proc #'math-preview--process-filter))
+      (let ((p (executable-find math-preview-command)))
+        (unless p
+          (error "%s is not an executable" math-preview-command))
+        (setq proc (start-process "math-preview" nil math-preview-command))
+        (unless (process-live-p proc)
+          (error "Cannot start process"))
+        (set-process-filter proc #'math-preview--process-filter)))
     proc))
 
 (defun math-preview-stop-process ()
@@ -153,7 +156,7 @@
     (let ((o (cdr (--first (= (car it) id) math-preview--queue))))
       (setq math-preview--queue
             (--remove (= (car it) id) math-preview--queue))
-      (when o (if err (progn (message err) (delete-overlay o))
+      (when o (if err (progn (print err) (delete-overlay o))
                 (overlay-put o 'category 'math-preview)
                 (overlay-put o 'display
                              (list (list 'raise math-preview-raise)
@@ -291,6 +294,7 @@
 
 (define-key math-preview-map (kbd "<delete>") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "<backspace>") #'math-preview-clear-at-point)
+(define-key math-preview-map (kbd "SPC") #'math-preview-clear-at-point)
 
 (defun math-preview-clear-all ()
   "Remove all preview overlays."
@@ -342,6 +346,7 @@ Scale is changed by `N` times `math-preview-scale-increment`"
         (kill-new (plist-get list ':data))
         (message "Image copied to clipboard")))))
 (define-key math-preview-map (kbd "<mouse-3>") #'math-preview-copy-svg)
+(define-key math-preview-map (kbd "RET") #'math-preview-copy-svg)
 ;; }}}
 
 
