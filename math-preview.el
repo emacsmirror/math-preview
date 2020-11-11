@@ -253,6 +253,7 @@
 ;; }}}
 
 ;; {{{ Interactive
+;;;###autoload
 (defun math-preview-region (beg end)
   "Preview equations in region between `BEG` and `END`."
   (interactive "r")
@@ -263,11 +264,13 @@
                                     (math-preview--strip-marks
                                      (buffer-substring (car it) (cdr it)))))))
 
+;;;###autoload
 (defun math-preview-all ()
   "Preview equations in buffer."
   (interactive)
   (math-preview-region (point-min) (point-max)))
 
+;;;###autoload
 (defun math-preview-at-point ()
   "Preview equations at point."
   (interactive)
@@ -282,11 +285,13 @@
                                     (math-preview--strip-marks
                                      (buffer-substring (car it) (cdr it)))))))
 
+;;;###autoload
 (defun math-preview-clear-region (beg end)
   "Remove all preview overlays in region between `BEG` and `END`."
   (interactive "r")
   (--map (delete-overlay it) (math-preview--overlays beg end)))
 
+;;;###autoload
 (defun math-preview-clear-at-point ()
   "Remove all preview overlays."
   (interactive)
@@ -296,6 +301,7 @@
 (define-key math-preview-map (kbd "<backspace>") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "SPC") #'math-preview-clear-at-point)
 
+;;;###autoload
 (defun math-preview-clear-all ()
   "Remove all preview overlays."
   (interactive)
@@ -319,6 +325,7 @@ Scale is changed by `N` times `math-preview-scale-increment`"
         (plist-put list ':scale new-scale-clipped)
         (move-overlay o (overlay-start o) (overlay-end o))))))
 
+;;;###autoload
 (defun math-preview-increment-scale (n)
   "Increment image size.
 Scale is changed by `N` times `math-preview-scale-increment`"
@@ -328,6 +335,7 @@ Scale is changed by `N` times `math-preview-scale-increment`"
 (define-key math-preview-map (kbd "+") #'math-preview-increment-scale)
 (define-key math-preview-map (kbd "p") #'math-preview-increment-scale)
 
+;;;###autoload
 (defun math-preview-decrement-scale (n)
   "Decrement image size.
 Scale is changed by `N` times `math-preview-scale-increment`"
@@ -336,6 +344,7 @@ Scale is changed by `N` times `math-preview-scale-increment`"
 
 (define-key math-preview-map (kbd "-") #'math-preview-decrement-scale)
 
+;;;###autoload
 (defun math-preview-copy-svg ()
   "Copy SVG image to clipboard."
   (interactive)
