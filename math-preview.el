@@ -26,7 +26,9 @@
 
 ;;; Commentary:
 
-;; Preview TeX math equations inline
+;; Preview TeX math equations inline using MathJax
+;; This package requires external program math-preview.js.
+;; Installation instructions are available in README.md file.
 
 ;;; Code:
 
@@ -108,8 +110,6 @@
 ;; {{{ Variables
 (defvar math-preview--queue nil "Job queue.")
 
-(defvar math-preview--schema-version 1 "JSON schema version.")
-
 (defvar math-preview-map (make-keymap)
   "Key map for math-preview image overlays.")
 (suppress-keymap math-preview-map t)
@@ -156,7 +156,7 @@
     (let ((o (cdr (--first (= (car it) id) math-preview--queue))))
       (setq math-preview--queue
             (--remove (= (car it) id) math-preview--queue))
-      (when o (if err (progn (print err) (delete-overlay o))
+      (when o (if err (progn (message "%s" (elt err 0)) (delete-overlay o))
                 (overlay-put o 'category 'math-preview)
                 (overlay-put o 'display
                              (list (list 'raise math-preview-raise)
@@ -186,7 +186,6 @@
                            (concat
                             (json-encode
                              (list :id id
-                                   :version math-preview--schema-version
                                    :data string
                                    :inline json-false))
                             "\n")))))
@@ -300,6 +299,8 @@
 (define-key math-preview-map (kbd "<delete>") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "<backspace>") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "SPC") #'math-preview-clear-at-point)
+(define-key math-preview-map (kbd "RET") #'math-preview-clear-at-point)
+(define-key math-preview-map (kbd "<mouse-1>") #'math-preview-clear-all)
 
 ;;;###autoload
 (defun math-preview-clear-all ()
@@ -309,7 +310,7 @@
 
 (define-key math-preview-map (kbd "<C-delete>") #'math-preview-clear-all)
 (define-key math-preview-map (kbd "<C-backspace>") #'math-preview-clear-all)
-(define-key math-preview-map (kbd "<mouse-1>") #'math-preview-clear-all)
+(define-key math-preview-map (kbd "<C-mouse-1>") #'math-preview-clear-all)
 
 (defun math-preview--set-scale (n)
   "Adjust image size.
@@ -355,7 +356,8 @@ Scale is changed by `N` times `math-preview-scale-increment`"
         (kill-new (plist-get list ':data))
         (message "Image copied to clipboard")))))
 (define-key math-preview-map (kbd "<mouse-3>") #'math-preview-copy-svg)
-(define-key math-preview-map (kbd "RET") #'math-preview-copy-svg)
+(define-key math-preview-map (kbd "<C-return>") #'math-preview-copy-svg)
+(define-key math-preview-map (kbd "C-SPC") #'math-preview-copy-svg)
 ;; }}}
 
 

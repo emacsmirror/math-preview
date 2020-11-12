@@ -1,14 +1,26 @@
 #!/usr/bin/env node
 
+// This file is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// For a full copy of the GNU General Public License
+// see <http://www.gnu.org/licenses/>.
+
 var VERSION = 1;
 var SCHEMA = {"type": "object",
               "properties": {
                   "id": { "type": "number" },
-                  "version": { "type": "number" },
                   "data": { "type": "string" },
                   "inline": { "type": "boolean" }
               },
-              required: ["id", "version", "data", "inline"],
+              required: ["id", "data", "inline"],
               additionalProperties: false
              };
 
@@ -34,23 +46,18 @@ rl.on('line',
               validate.validate(input, SCHEMA, {throwFirst: true});
               output.id = input.id;
 
-              if (input.version != VERSION) {
-                  output.error = "Version mismatch";
+              mjAPI.typeset({
+                  math: input.data,
+                  format: input.inline ? "inline-TeX": "TeX",
+                  svg:true,
+              }, function (data) {
+                  if (!data.errors) {
+                      output.data = data.svg;
+                  } else {
+                      output.error = data.errors;
+                  }
                   console.log(JSON.stringify(output));
-              } else {
-                  mjAPI.typeset({
-                      math: input.data,
-                      format: input.inline ? "inline-TeX": "TeX",
-                      svg:true,
-                  }, function (data) {
-                      if (!data.errors) {
-                          output.data = data.svg;
-                      } else {
-                          output.error = data.errors;
-                      }
-                      console.log(JSON.stringify(output));
-                  });
-              }
+              });
           } catch(E) {
               if (E instanceof SyntaxError) {
                   output.error = "JSON parse error";

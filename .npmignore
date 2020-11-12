@@ -1,4 +1,7 @@
 *.el
+*.md
+*.webp
+*.gif
 
 # .gitignore contents:
 
