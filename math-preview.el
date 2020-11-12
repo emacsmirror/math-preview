@@ -142,6 +142,7 @@
         (set-process-filter proc #'math-preview--process-filter)))
     proc))
 
+;;;###autoload
 (defun math-preview-stop-process ()
   "Stop math-preview process."
   (interactive)

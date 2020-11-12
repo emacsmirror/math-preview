@@ -43,6 +43,7 @@ Or if you use `use-package`, just add the following command:
 | `math-preview-increment-scale` | Enlarge equation image at point |
 | `math-preview-decrement-scale` | Shrink equation image at point |
 | `math-preview-copy-svg` | Copy SVG code to clipboard |
+| `math-preview-stop-process` | Stop child process |
 
 ## Key bindings
 
