@@ -154,6 +154,7 @@
   "Handle `MESSAGE` from math-preview `PROCESS`."
   (when math-preview--debug-json
     (with-current-buffer (get-buffer-create "*math-preview*")
+      (insert "Incoming:")
       (insert message)))
   (let* ((msg (json-read-from-string message))
          (id (cdr (assoc 'id msg)))
@@ -188,13 +189,15 @@
       (overlay-put o 'category 'math-preview-processing)
       (setq math-preview--queue (-insert-at 0 (-cons* id o)
                                             math-preview--queue))
-      (process-send-string proc
-                           (concat
-                            (json-encode
-                             (list :id id
-                                   :data string
-                                   :inline json-false))
-                            "\n")))))
+      (let ((msg (concat (json-encode (list :id id
+                                            :data string
+                                            :inline json-false))
+                         "\n")))
+        (when math-preview--debug-json
+          (with-current-buffer (get-buffer-create "*math-preview*")
+            (insert "Outgoing:")
+            (insert msg)))
+        (process-send-string proc msg)))))
 ;; }}}
 
 ;; {{{ Search
