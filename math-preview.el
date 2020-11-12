@@ -114,6 +114,9 @@
   "Key map for math-preview image overlays.")
 (suppress-keymap math-preview-map t)
 
+(defvar math-preview--input-buffer ""
+  "Buffer holds input message.")
+
 (defvar math-preview--debug-json nil
   "Switch for enabling JSON dump into `math-preview--output-buffer'.")
 
@@ -139,6 +142,7 @@
         (setq proc (start-process "math-preview" nil math-preview-command))
         (unless (process-live-p proc)
           (error "Cannot start process"))
+        (set-process-query-on-exit-flag proc nil)
         (set-process-filter proc #'math-preview--process-filter)))
     proc))
 
@@ -153,28 +157,32 @@
 
 (defun math-preview--process-filter (process message)
   "Handle `MESSAGE` from math-preview `PROCESS`."
-  (when math-preview--debug-json
-    (with-current-buffer (get-buffer-create "*math-preview*")
-      (insert "Incoming:")
-      (insert message)))
-  (let* ((msg (json-read-from-string message))
-         (id (cdr (assoc 'id msg)))
-         (data (cdr (assoc 'data msg)))
-         (err (cdr (assoc 'error msg))))
-    (let ((o (cdr (--first (= (car it) id) math-preview--queue))))
-      (setq math-preview--queue
-            (--remove (= (car it) id) math-preview--queue))
-      (when o (if err (progn (message "%s" (elt err 0)) (delete-overlay o))
-                (overlay-put o 'category 'math-preview)
-                (overlay-put o 'display
-                             (list (list 'raise math-preview-raise)
-                                   (cons 'image
-                                         (list :type 'svg
-                                               :data data
-                                               :scale math-preview-scale
-                                               :pointer 'hand
-                                               :margin math-preview-margin
-                                               :relief math-preview-relief)))))))))
+  (setq message (s-concat math-preview--input-buffer message))
+  (setq math-preview--input-buffer "")
+  (if (not (s-ends-with? "\n" message))
+      (setq math-preview--input-buffer message)
+    (when math-preview--debug-json
+      (with-current-buffer (get-buffer-create "*math-preview*")
+        (insert "Incoming:")
+        (insert message)))
+    (let* ((msg (json-read-from-string message))
+           (id (cdr (assoc 'id msg)))
+           (data (cdr (assoc 'data msg)))
+           (err (cdr (assoc 'error msg))))
+      (let ((o (cdr (--first (= (car it) id) math-preview--queue))))
+        (setq math-preview--queue
+              (--remove (= (car it) id) math-preview--queue))
+        (when o (if err (progn (message "%s" (elt err 0)) (delete-overlay o))
+                  (overlay-put o 'category 'math-preview)
+                  (overlay-put o 'display
+                               (list (list 'raise math-preview-raise)
+                                     (cons 'image
+                                           (list :type 'svg
+                                                 :data data
+                                                 :scale math-preview-scale
+                                                 :pointer 'hand
+                                                 :margin math-preview-margin
+                                                 :relief math-preview-relief))))))))))
 
 (defun math-preview--submit (beg end string)
   "Submit TeX processing job.
