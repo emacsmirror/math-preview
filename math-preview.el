@@ -114,6 +114,9 @@
   "Key map for math-preview image overlays.")
 (suppress-keymap math-preview-map t)
 
+(defvar math-preview--debug-json nil
+  "Switch for enabling JSON dump into `math-preview--output-buffer'.")
+
 (put 'math-preview 'face 'math-preview-face)
 (put 'math-preview 'keymap math-preview-map)
 (put 'math-preview 'evaporate t)
@@ -149,6 +152,9 @@
 
 (defun math-preview--process-filter (process message)
   "Handle `MESSAGE` from math-preview `PROCESS`."
+  (when math-preview--debug-json
+    (with-current-buffer (get-buffer-create "*math-preview*")
+      (insert message)))
   (let* ((msg (json-read-from-string message))
          (id (cdr (assoc 'id msg)))
          (data (cdr (assoc 'data msg)))
