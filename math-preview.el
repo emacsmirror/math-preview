@@ -156,12 +156,19 @@
     (kill-process (get-process "math-preview"))))
 
 (defun math-preview--process-filter (process message)
-  "Handle `MESSAGE` from math-preview `PROCESS`."
-  (setq message (s-concat math-preview--input-buffer message))
-  (setq math-preview--input-buffer "")
-  (if (not (s-ends-with? "\n" message))
-      (setq math-preview--input-buffer message)
-    (when math-preview--debug-json
+  "Handle `MESSAGE` from math-preview `PROCESS`.
+Call `math-preview--process-input' for strings with carriage return."
+  (setq message (s-replace "" ""
+                           (s-concat math-preview--input-buffer message)))
+  (let ((lines (s-split "\n" message)))
+    (setq math-preview--input-buffer (-first-item (-take-last 1 lines)))
+    (->> lines
+         (-drop-last 1)
+         (-map #'math-preview--process-input))))
+
+(defun math-preview--process-input (message)
+  "Process input MESSAGE line."
+  (when math-preview--debug-json
       (with-current-buffer (get-buffer-create "*math-preview*")
         (insert "Incoming:")
         (insert message)))
@@ -182,7 +189,7 @@
                                                  :scale math-preview-scale
                                                  :pointer 'hand
                                                  :margin math-preview-margin
-                                                 :relief math-preview-relief))))))))))
+                                                 :relief math-preview-relief)))))))))
 
 (defun math-preview--submit (beg end string)
   "Submit TeX processing job.
