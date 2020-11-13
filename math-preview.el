@@ -59,7 +59,7 @@
                                 ("$" . "$"))
   "Strings marking beginning and end of equation."
   :tag "Equation marks."
-  :type '(list (cons :tag "Configure marks" string string))
+  :type '(alist :key-type string :value-type string)
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-command "math-preview.js"
