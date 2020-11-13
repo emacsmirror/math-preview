@@ -233,10 +233,14 @@ Call `math-preview--process-input' for strings with carriage return."
 (defun math-preview--check-marks (arg)
   "Check that ARG is a valid `math-preview-marks` value."
   (and (listp arg)
-       (--reduce (and acc
-                      (and (stringp (car it))
-                           (stringp (cdr it))))
-                 arg)))
+       (consp (car arg))
+       (not (-filter 'null (--map (and
+	                           (consp it)
+	                           (stringp (car it))
+	                           (stringp (cdr it))
+	                           (not (s-matches? "^\s*$" (car it)))
+	                           (not (s-matches? "^\s*$" (cdr it))))
+			          arg)))))
 
 (defun math-preview--find-gaps (beg end)
   "Find gaps in math-preview overlays in region between `BEG` and `END`."
