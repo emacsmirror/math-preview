@@ -13,6 +13,9 @@ It may be installed by issuing the command:
 > npm install -g git+https://gitlab.com/matsievskiysv/math-preview
 ```
 
+If you don't have `npm` installed, get it from [`asdf`](https://github.com/asdf-vm/asdf-nodejs) or
+[`nvm`](https://github.com/nvm-sh/nvm).
+
 Make sure that `math-preview.js` is in you `PATH`.
 
 Install companion package in Emacs:

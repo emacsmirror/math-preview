@@ -160,7 +160,7 @@
 Call `math-preview--process-input' for strings with carriage return."
   (setq message (s-replace "" ""
                            (s-concat math-preview--input-buffer message)))
-  (let ((lines (s-split "\n" message)))
+  (let ((lines (s-lines message)))
     (setq math-preview--input-buffer (-first-item (-take-last 1 lines)))
     (->> lines
          (-drop-last 1)
@@ -278,6 +278,18 @@ Call `math-preview--process-input' for strings with carriage return."
                               (s-replace-all '(("\n" . " ")) string)))
        (--map (s-chop-suffix (cdr it) (s-chop-prefix (car it) string)))
        (-first-item)))
+
+(defun math-preview--svg-size (string)
+  "Parse svg STRING and extract its size."
+  (let* ((header (car (cdr (car (s-match-strings-all
+                                 "<svg\s*\\([^<>]+\\)\s*>" image)))))
+         (height (string-to-number (car (crd (car (s-match-strings-all
+                                                   "height\s*=\s*\"\\([[:digit:]\\.]+\\)ex\""
+                                                   header))))))
+         (width (string-to-number (car (crd (car (s-match-strings-all
+                                                  "width\s*=\s*\"\\([[:digit:]\\.]+\\)ex\""
+                                                  header)))))))
+    (list width height)))
 ;; }}}
 
 ;; {{{ Interactive
