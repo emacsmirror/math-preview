@@ -5,7 +5,7 @@ buffers.
 
 ## Installation
 
-`math-preview` requires external program `math-preview.js`.
+`math-preview` requires external nodejs program `math-preview`.
 
 It may be installed by issuing the command:
 
@@ -16,13 +16,13 @@ It may be installed by issuing the command:
 If you don't have `npm` installed, get it from [`asdf`](https://github.com/asdf-vm/asdf-nodejs) or
 [`nvm`](https://github.com/nvm-sh/nvm).
 
-Make sure that `math-preview.js` is in you `PATH`.
+Make sure that `math-preview` is in you `PATH`.
 
 Install companion package in Emacs:
 
 <kbd>M-x</kbd>+<kbd>package-install</kbd>+<kbd>math-preview</kbd>
 
-If `math-preview.js` is not in your path, then you need to set variable `math-preview-command`
+If `math-preview` is not in your path, then you need to set variable `math-preview-command`
 to the location of the program:
 <kbd>M-x</kbd>+<kbd>customize-variable</kbd>+<kbd>math-preview-command</kbd>.
 
@@ -30,7 +30,7 @@ Or if you use `use-package`, just add the following command:
 
 ```elisp
 (use-package math-preview
-  :custom (math-preview-command "/path/to/math-preview.js"))
+  :custom (math-preview-command "/path/to/math-preview"))
 ```
 
 ## Functions

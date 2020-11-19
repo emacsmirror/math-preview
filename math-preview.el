@@ -27,7 +27,7 @@
 ;;; Commentary:
 
 ;; Preview TeX math equations inline using MathJax
-;; This package requires external program math-preview.js.
+;; This package requires external program math-preview.
 ;; Installation instructions are available in README.md file.
 
 ;;; Code:
@@ -62,7 +62,7 @@
   :type '(alist :key-type string :value-type string)
   :safe #'math-preview--check-marks)
 
-(defcustom math-preview-command "math-preview.js"
+(defcustom math-preview-command "math-preview"
   "TeX conversion program name."
   :tag "Command name."
   :type 'string)
