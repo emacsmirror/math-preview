@@ -34,9 +34,11 @@ var rl = readline.createInterface({
   terminal: false
 });
 
-mjAPI.config({displayErrors: false});
+mjAPI.config({displayErrors: false,
+              extensions: "TeX/autoload-all.js"});
 mjAPI.start();
 
+// FIXME: catch stderr output
 rl.on('line',
       (line) => {
           var output = {"id": 0, "data": null, "error": null};

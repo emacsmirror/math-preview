@@ -60,19 +60,54 @@ is on the image.
 | `math-preview-clear-all` | <kbd>Ctrl</kbd>+<kbd>Del</kbd>; <kbd>Ctrl</kbd>+<kbd>Backspace</kbd>; <kbd>Ctrl</kbd>+<kbd>mouse-1</kbd> |
 | `math-preview-increment-scale` | <kbd>+</kbd>; <kbd>p</kbd> |
 | `math-preview-decrement-scale` | <kbd>-</kbd>; <kbd>n</kbd> |
-| `math-preview-copy-svg` | <kbd>Ctrl</kbd>+<kbd>Backspace</kbd>; <kbd>Ctrl</kbd>+<kbd>Space</kbd>; <kbd>mouse-3</kbd> |
+| `math-preview-copy-svg` | <kbd>Ctrl</kbd>+<kbd>Backspace</kbd>; <kbd>Ctrl</kbd>+<kbd>Space</kbd> |
 
 
-## MathJax extension libraries
+## MathJax examples
 
-MathJax provides additional functionality via extension libraries.
-They are enabled by the `\require` macro.
+All equations are displayed inline: $\sqrt[3]{\frac xy}$ $\frac{n!}{k!(n-k)!} = \binom{n}{k}$ $\sqrt[n]{1+x+x^2+x^3+\dots+x^n}$ $\int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x$
 
-For example:
+$\TeX$ errors are shown in minibuffer: $\frac{x{y}$
 
-```latex
-\(\require{\mhchem} \require{enclose} \enclose{circle}{\ce{H2O}}\)
-```
+Make image bigger or smaller:
+$$S_{12} =
+	\begin{cases}
+		\sqrt{1 - |S_{11}|^2 - \exp{\left(
+			-2 \pi f\displaystyle\sum_{n=1}^N{\frac{D_n}{v_{gr} Q_n}}
+		\right)}} \times &                                                        \\
+		\times \exp{\left(
+			j \displaystyle\sum_{n=1}^N{
+			\arccos{\left(\frac{f_{0n}^2-f^2}{f^2 K^H_n + f_{0n}^2 K^E_n}\right)}
+		}\right)}        & , \frac{f_0^2-f^2}{f^2 K^H + f_0^2 K^E} \in [-1,1];    \\[30pt]
+		\sqrt{1 - |S_{11}|^2}
+		\exp{\left(
+				j \left[\angle{S_{11}} + \frac{\pi}{2} \right]
+		\right)}         & , \frac{f_0^2-f^2}{f^2 K^H + f_0^2 K^E} \notin [-1,1].
+	\end{cases}$$
 
-Get full list of available extensions
-[here](http://docs.mathjax.org/en/latest/input/tex/extensions/).
+Use colors:
+$$\require{color}\color{red}\int_{\color{magenta}0}^{\color{yellow}\infty}{\color{cyan}x}$$
+
+Use environments:
+$$
+\begin{array}{ccccccccc}
+0 & \xrightarrow{i} & A & \xrightarrow{f} & B & \xrightarrow{q} & C & \xrightarrow{d} & 0 \\
+\downarrow & \searrow & \downarrow & \nearrow & \downarrow & \searrow & \downarrow & \nearrow & \downarrow \\
+0 & \xrightarrow{j} & D & \xrightarrow{g} & E & \xrightarrow{r} & F & \xrightarrow{e} & 0
+\end{array}
+$$
+
+Use MathJax extensions:
+$$
+\begin{CD}
+A @<<< B @>>> C\\
+@. @| @AAA\\
+@. D @= E
+\end{CD}$$
+
+$$\ce{Zn^2+  <=>[+ 2OH-][+ 2H+]
+$\underset{\text{zinc hydroxide}}{\ce{Zn(OH)2 v}}
+$  <=>[+ 2OH-][+ 2H+]
+$\underset{\text{tetrahydroxozincate(II)}}{\ce{[Zn(OH)4]^2-}}$}$$
+
+Copy SVG to kill-ring: $x^2$

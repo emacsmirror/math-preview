@@ -292,11 +292,9 @@ Call `math-preview--process-input' for strings with carriage return."
     (list width height)))
 ;; }}}
 
-;; {{{ Interactive
-;;;###autoload
-(defun math-preview-region (beg end)
+;; {{{ User interface
+(defun math-preview--region (beg end)
   "Preview equations in region between `BEG` and `END`."
-  (interactive "r")
   (->> (math-preview--find-gaps beg end)
        (--map (math-preview--search (car it) (cdr it)))
        (-flatten)
@@ -305,10 +303,17 @@ Call `math-preview--process-input' for strings with carriage return."
                                      (buffer-substring (car it) (cdr it)))))))
 
 ;;;###autoload
+(defun math-preview-region (beg end)
+  "Preview equations in region between `BEG` and `END`."
+  (interactive "r")
+  (deactivate-mark)
+  (math-preview--region beg end))
+
+;;;###autoload
 (defun math-preview-all ()
   "Preview equations in buffer."
   (interactive)
-  (math-preview-region (point-min) (point-max)))
+  (math-preview--region (point-min) (point-max)))
 
 ;;;###autoload
 (defun math-preview-at-point ()
@@ -325,29 +330,34 @@ Call `math-preview--process-input' for strings with carriage return."
                                     (math-preview--strip-marks
                                      (buffer-substring (car it) (cdr it)))))))
 
+(defun math-preview--clear-region (beg end)
+  "Remove all preview overlays in region between `BEG` and `END`."
+  (--map (delete-overlay it) (math-preview--overlays beg end)))
+
 ;;;###autoload
 (defun math-preview-clear-region (beg end)
   "Remove all preview overlays in region between `BEG` and `END`."
   (interactive "r")
-  (--map (delete-overlay it) (math-preview--overlays beg end)))
+  (deactivate-mark)
+  (math-preview--clear-region beg end))
 
 ;;;###autoload
 (defun math-preview-clear-at-point ()
   "Remove all preview overlays."
   (interactive)
-  (math-preview-clear-region (point) (point)))
+  (math-preview--clear-region (point) (point)))
 
 (define-key math-preview-map (kbd "<delete>") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "<backspace>") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "SPC") #'math-preview-clear-at-point)
 (define-key math-preview-map (kbd "RET") #'math-preview-clear-at-point)
-(define-key math-preview-map (kbd "<mouse-1>") #'math-preview-clear-all)
+(define-key math-preview-map (kbd "<mouse-1>") #'math-preview-clear-at-point)
 
 ;;;###autoload
 (defun math-preview-clear-all ()
   "Remove all preview overlays."
   (interactive)
-  (math-preview-clear-region (point-min) (point-max)))
+  (math-preview--clear-region (point-min) (point-max)))
 
 (define-key math-preview-map (kbd "<C-delete>") #'math-preview-clear-all)
 (define-key math-preview-map (kbd "<C-backspace>") #'math-preview-clear-all)
@@ -396,7 +406,6 @@ Scale is changed by `N` times `math-preview-scale-increment`"
              (list (cdr (car (cdr display)))))
         (kill-new (plist-get list ':data))
         (message "Image copied to clipboard")))))
-(define-key math-preview-map (kbd "<mouse-3>") #'math-preview-copy-svg)
 (define-key math-preview-map (kbd "<C-return>") #'math-preview-copy-svg)
 (define-key math-preview-map (kbd "C-SPC") #'math-preview-copy-svg)
 ;; }}}
