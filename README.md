@@ -65,12 +65,13 @@ is on the image.
 
 ## MathJax examples
 
-All equations are displayed inline: $\sqrt[3]{\frac xy}$ $\frac{n!}{k!(n-k)!} = \binom{n}{k}$ $\sqrt[n]{1+x+x^2+x^3+\dots+x^n}$ $\int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x$
+All equations are displayed inline: $\sqrt[3]{\frac xy}$ $$\frac{n!}{k!(n-k)!} = \binom{n}{k}$$ \(\sqrt[n]{1+x+x^2+x^3+\dots+x^n}\) \[\int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x\]
 
 $\TeX$ errors are shown in minibuffer: $\frac{x{y}$
 
 Make image bigger or smaller:
-$$S_{12} =
+\[
+S_{12} =
 	\begin{cases}
 		\sqrt{1 - |S_{11}|^2 - \exp{\left(
 			-2 \pi f\displaystyle\sum_{n=1}^N{\frac{D_n}{v_{gr} Q_n}}
@@ -83,10 +84,11 @@ $$S_{12} =
 		\exp{\left(
 				j \left[\angle{S_{11}} + \frac{\pi}{2} \right]
 		\right)}         & , \frac{f_0^2-f^2}{f^2 K^H + f_0^2 K^E} \notin [-1,1].
-	\end{cases}$$
+	\end{cases}
+\]
 
 Use colors:
-$$\require{color}\color{red}\int_{\color{magenta}0}^{\color{yellow}\infty}{\color{cyan}x}$$
+\(\color{red}\int_{\color{magenta}0}^{\color{yellow}\infty}{\color{cyan}x}\)
 
 Use environments:
 $$
@@ -105,9 +107,9 @@ A @<<< B @>>> C\\
 @. D @= E
 \end{CD}$$
 
-$$\ce{Zn^2+  <=>[+ 2OH-][+ 2H+]
+\[\ce{Zn^2+  <=>[+ 2OH-][+ 2H+]
 $\underset{\text{zinc hydroxide}}{\ce{Zn(OH)2 v}}
 $  <=>[+ 2OH-][+ 2H+]
-$\underset{\text{tetrahydroxozincate(II)}}{\ce{[Zn(OH)4]^2-}}$}$$
+$\underset{\text{tetrahydroxozincate(II)}}{\ce{[Zn(OH)4]^2-}}$}\]
 
 Copy SVG to kill-ring: $x^2$
