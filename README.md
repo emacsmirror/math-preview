@@ -5,6 +5,8 @@ buffers.
 
 ## Installation
 
+*NOTE: it's recommended to use the latest Emacs version with this package. See [this issue](https://gitlab.com/matsievskiysv/math-preview/-/issues/1).*
+
 `math-preview` requires external nodejs program `math-preview`.
 
 It may be installed by issuing the command:
