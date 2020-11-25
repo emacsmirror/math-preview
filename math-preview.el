@@ -71,40 +71,40 @@
   "Adjust image vertical position."
   :tag "Image vertical position."
   :type 'number
-  :safe #'(lambda (n) (and (numberp n)
-                      (> n 0)
-                      (< n 1))))
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0)
+                    (< n 1))))
 
 (defcustom math-preview-margin '(5 . 5)
   "Adjust image margin."
   :tag "Image margin."
   :type '(cons :tag "Configure margins" integer integer)
-  :safe #'(lambda (l) (and (consp l)
-                      (integerp (car l))
-                      (> (car l) 0)
-                      (integerp (cdr l))
-                      (> (cdr l) 0))))
+  :safe (lambda (l) (and (consp l)
+                    (integerp (car l))
+                    (> (car l) 0)
+                    (integerp (cdr l))
+                    (> (cdr l) 0))))
 
 (defcustom math-preview-relief 0
   "Adjust image relief."
   :tag "Image relief."
   :type 'integer
-  :safe #'(lambda (n) (and (integerp n)
-                      (> n 0))))
+  :safe (lambda (n) (and (integerp n)
+                    (> n 0))))
 
 (defcustom math-preview-scale 2
   "Adjust image scale."
   :tag "Image scale."
   :type 'number
-  :safe #'(lambda (n) (and (numberp n)
-                      (> n 0))))
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
 
 (defcustom math-preview-scale-increment 0.1
   "Image scale interactive increment value."
   :tag "Image scale increment."
   :type 'number
-  :safe #'(lambda (n) (and (numberp n)
-                      (> n 0))))
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
 ;; }}}
 
 ;; {{{ Variables
@@ -155,7 +155,7 @@
     (math-preview--overlays-remove-processing)
     (kill-process (get-process "math-preview"))))
 
-(defun math-preview--process-filter (process message)
+(defun math-preview--process-filter (_process message)
   "Handle `MESSAGE` from math-preview `PROCESS`.
 Call `math-preview--process-input' for strings with carriage return."
   (setq message (s-replace "" ""
@@ -278,18 +278,6 @@ Call `math-preview--process-input' for strings with carriage return."
                               (s-replace-all '(("\n" . " ")) string)))
        (--map (s-chop-suffix (cdr it) (s-chop-prefix (car it) string)))
        (-first-item)))
-
-(defun math-preview--svg-size (string)
-  "Parse svg STRING and extract its size."
-  (let* ((header (car (cdr (car (s-match-strings-all
-                                 "<svg\s*\\([^<>]+\\)\s*>" image)))))
-         (height (string-to-number (car (crd (car (s-match-strings-all
-                                                   "height\s*=\s*\"\\([[:digit:]\\.]+\\)ex\""
-                                                   header))))))
-         (width (string-to-number (car (crd (car (s-match-strings-all
-                                                  "width\s*=\s*\"\\([[:digit:]\\.]+\\)ex\""
-                                                  header)))))))
-    (list width height)))
 ;; }}}
 
 ;; {{{ User interface
