@@ -64,6 +64,18 @@ is on the image.
 | `math-preview-decrement-scale` | <kbd>-</kbd>; <kbd>n</kbd> |
 | `math-preview-copy-svg` | <kbd>Ctrl</kbd>+<kbd>Backspace</kbd>; <kbd>Ctrl</kbd>+<kbd>Space</kbd> |
 
+## Equation preprocessing
+
+It might be useful to preprocess equation strings before passing them to MathJax.
+For this you may use `math-preview-preprocess-functions` customization option.
+Each equation would be modified by functions in this list, chained from left to right.
+
+For example, you might want to replace undefined macro with a placeholder.
+```elisp
+(lambda (s)
+  (concat "\\newcommand{textup}[1]{#1}" s))
+```
+This function prepends equation with missing definition of the `textup` macro.
 
 ## MathJax examples
 

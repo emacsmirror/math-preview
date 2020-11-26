@@ -3,7 +3,7 @@
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
 ;; Version: 0.1.1
-;; Package-Requires: ((emacs "26.1") (dash "2.17.0") (f "0.20.0"))
+;; Package-Requires: ((emacs "26.1") (dash "2.17.0") (dash-functional "2.17.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
 
@@ -33,7 +33,7 @@
 ;;; Code:
 
 (require 'dash)
-(require 'f)
+(require 'dash-functional)
 (require 's)
 
 
@@ -107,6 +107,15 @@
   :type 'number
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
+
+(defcustom math-preview-preprocess-functions (list)
+  "Functions to call on each string.
+Functions are applied in chain from left to right.
+Each function must take one string argument and return string."
+  :tag "Preprocess functions."
+  :type '(repeat function)
+  :safe (lambda (n) (and (listp n)
+                    (-all? 'identity (-map #'functionp n)))))
 ;; }}}
 
 ;; {{{ Variables
@@ -207,6 +216,12 @@ Call `math-preview--process-input' for strings with carriage return."
       (overlay-put o 'category 'math-preview-processing)
       (setq math-preview--queue (-insert-at 0 (-cons* id o)
                                             math-preview--queue))
+      (when (and (listp math-preview-preprocess-functions)
+                 (> (length math-preview-preprocess-functions) 0))
+        (setq string (funcall
+                      (apply #'-compose
+                             (reverse math-preview-preprocess-functions))
+                      string)))
       (let ((msg (concat (json-encode (list :id id
                                             :data string
                                             :inline json-false))
