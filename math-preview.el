@@ -53,7 +53,9 @@
   '((t :inherit highlight))
   "Face for equation processing.")
 
-(defcustom math-preview-marks '(("\\[" . "\\]")
+(defcustom math-preview-marks '(("\\begin{equation}" . "\\end{equation}")
+                                ("\\begin{equation*}" . "\\end{equation*}")
+                                ("\\[" . "\\]")
                                 ("\\(" . "\\)")
                                 ("$$" . "$$")
                                 ("$" . "$"))
