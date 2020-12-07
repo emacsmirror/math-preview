@@ -145,8 +145,10 @@ Each function must take one string argument and return string."
 ;; }}}
 
 ;; {{{ Process
-(defun math-preview--maybe-start-process ()
+;;;###autoload
+(defun math-preview-start-process ()
   "Start math-preview process."
+  (interactive)
   (let ((proc (get-process "math-preview"))
         (process-connection-type nil))
     (unless proc
@@ -212,7 +214,7 @@ Call `math-preview--process-input' for strings with carriage return."
 `BEG` and `END` are the positions of the overlay region.
 `STRING` is a TeX equation."
   (unless (math-preview--overlays beg end)
-    (let ((proc (math-preview--maybe-start-process))
+    (let ((proc (math-preview-start-process))
           (o (make-overlay beg end))
           (id (1+ (or (-> math-preview--queue
                           (-first-item)
