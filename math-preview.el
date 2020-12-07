@@ -69,6 +69,11 @@
   :tag "Command name."
   :type 'string)
 
+(defcustom math-preview-inline-style nil
+  "Use smaller math operators so equations would take less vertical space."
+  :tag "Display in inline style."
+  :type 'boolean)
+
 (defcustom math-preview-raise 0.4
   "Adjust image vertical position."
   :tag "Image vertical position."
@@ -224,7 +229,7 @@ Call `math-preview--process-input' for strings with carriage return."
                       string)))
       (let ((msg (concat (json-encode (list :id id
                                             :data string
-                                            :inline json-false))
+                                            :inline (if math-preview-inline-style t json-false)))
                          "\n")))
         (when math-preview--debug-json
           (with-current-buffer (get-buffer-create "*math-preview*")
