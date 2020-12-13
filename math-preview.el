@@ -126,9 +126,24 @@ Each function must take one string argument and return string."
 ;; {{{ Variables
 (defvar math-preview--queue nil "Job queue.")
 
-(defvar math-preview-map (make-keymap)
+(defvar math-preview-map (let ((keymap (make-keymap)))
+                           (suppress-keymap keymap t)
+                           (define-key keymap (kbd "<delete>")		#'math-preview-clear-at-point)
+                           (define-key keymap (kbd "<backspace>")	#'math-preview-clear-at-point)
+                           (define-key keymap (kbd "SPC")		#'math-preview-clear-at-point)
+                           (define-key keymap (kbd "RET")		#'math-preview-clear-at-point)
+                           (define-key keymap (kbd "<mouse-1>")		#'math-preview-clear-at-point)
+                           (define-key keymap (kbd "<C-delete>")	#'math-preview-clear-all)
+                           (define-key keymap (kbd "<C-backspace>")	#'math-preview-clear-all)
+                           (define-key keymap (kbd "<C-mouse-1>")	#'math-preview-clear-all)
+                           (define-key keymap (kbd "+")			#'math-preview-increment-scale)
+                           (define-key keymap (kbd "p")			#'math-preview-increment-scale)
+                           (define-key keymap (kbd "-")			#'math-preview-decrement-scale)
+                           (define-key keymap (kbd "n")			#'math-preview-decrement-scale)
+                           (define-key keymap (kbd "<C-return>")	#'math-preview-copy-svg)
+                           (define-key keymap (kbd "C-SPC")		#'math-preview-copy-svg)
+                           keymap)
   "Key map for math-preview image overlays.")
-(suppress-keymap math-preview-map t)
 
 (defvar math-preview--input-buffer ""
   "Buffer holds input message.")
@@ -139,7 +154,7 @@ Each function must take one string argument and return string."
 (put 'math-preview 'face 'math-preview-face)
 (put 'math-preview 'keymap math-preview-map)
 (put 'math-preview 'evaporate t)
-(put 'math-preview 'help-echo "mouse-1 to remove\nmouse-3 to copy")
+(put 'math-preview 'help-echo "mouse-1 to remove")
 (put 'math-preview 'mouse-face 'math-preview-processing-face)
 (put 'math-preview-processing 'face 'math-preview-processing-face)
 ;; }}}
@@ -359,21 +374,11 @@ Call `math-preview--process-input' for strings with carriage return."
   (interactive)
   (math-preview--clear-region (point) (point)))
 
-(define-key math-preview-map (kbd "<delete>") #'math-preview-clear-at-point)
-(define-key math-preview-map (kbd "<backspace>") #'math-preview-clear-at-point)
-(define-key math-preview-map (kbd "SPC") #'math-preview-clear-at-point)
-(define-key math-preview-map (kbd "RET") #'math-preview-clear-at-point)
-(define-key math-preview-map (kbd "<mouse-1>") #'math-preview-clear-at-point)
-
 ;;;###autoload
 (defun math-preview-clear-all ()
   "Remove all preview overlays."
   (interactive)
   (math-preview--clear-region (point-min) (point-max)))
-
-(define-key math-preview-map (kbd "<C-delete>") #'math-preview-clear-all)
-(define-key math-preview-map (kbd "<C-backspace>") #'math-preview-clear-all)
-(define-key math-preview-map (kbd "<C-mouse-1>") #'math-preview-clear-all)
 
 (defun math-preview--set-scale (n)
   "Adjust image size.
@@ -396,17 +401,12 @@ Scale is changed by `N` times `math-preview-scale-increment`"
   (interactive "p")
   (math-preview--set-scale (if (or (null n) (<= n 0)) 1 n)))
 
-(define-key math-preview-map (kbd "+") #'math-preview-increment-scale)
-(define-key math-preview-map (kbd "p") #'math-preview-increment-scale)
-
 ;;;###autoload
 (defun math-preview-decrement-scale (n)
   "Decrement image size.
 Scale is changed by `N` times `math-preview-scale-increment`"
   (interactive "p")
   (math-preview--set-scale (if (or (null n) (<= n 0)) -1 (* n -1))))
-
-(define-key math-preview-map (kbd "-") #'math-preview-decrement-scale)
 
 ;;;###autoload
 (defun math-preview-copy-svg ()
@@ -418,8 +418,6 @@ Scale is changed by `N` times `math-preview-scale-increment`"
              (list (cdr (car (cdr display)))))
         (kill-new (plist-get list ':data))
         (message "Image copied to clipboard")))))
-(define-key math-preview-map (kbd "<C-return>") #'math-preview-copy-svg)
-(define-key math-preview-map (kbd "C-SPC") #'math-preview-copy-svg)
 ;; }}}
 
 
