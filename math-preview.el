@@ -47,11 +47,11 @@
 
 (defface math-preview-face
   '((t :inherit default))
-  "Face for equation.")
+  "Face for equation")
 
 (defface math-preview-processing-face
   '((t :inherit highlight))
-  "Face for equation processing.")
+  "Face for equation processing")
 
 (defcustom math-preview-marks '(("\\begin{equation}" . "\\end{equation}")
                                 ("\\begin{equation*}" . "\\end{equation*}")
@@ -60,13 +60,13 @@
                                 ("$$" . "$$")
                                 ("$" . "$"))
   "Strings marking beginning and end of equation."
-  :tag "Equation marks."
+  :tag "Equation marks"
   :type '(alist :key-type string :value-type string)
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-command "math-preview"
   "TeX conversion program name."
-  :tag "Command name."
+  :tag "Command name"
   :type 'string)
 
 (defcustom math-preview-inline-style nil
@@ -76,7 +76,7 @@
 
 (defcustom math-preview-raise 0.4
   "Adjust image vertical position."
-  :tag "Image vertical position."
+  :tag "Image vertical position"
   :type 'number
   :safe (lambda (n) (and (numberp n)
                     (> n 0)
@@ -84,7 +84,7 @@
 
 (defcustom math-preview-margin '(5 . 5)
   "Adjust image margin."
-  :tag "Image margin."
+  :tag "Image margin"
   :type '(cons :tag "Configure margins" integer integer)
   :safe (lambda (l) (and (consp l)
                     (integerp (car l))
@@ -94,21 +94,21 @@
 
 (defcustom math-preview-relief 0
   "Adjust image relief."
-  :tag "Image relief."
+  :tag "Image relief"
   :type 'integer
   :safe (lambda (n) (and (integerp n)
                     (> n 0))))
 
 (defcustom math-preview-scale 2
   "Adjust image scale."
-  :tag "Image scale."
+  :tag "Image scale"
   :type 'number
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
 
 (defcustom math-preview-scale-increment 0.1
   "Image scale interactive increment value."
-  :tag "Image scale increment."
+  :tag "Image scale increment"
   :type 'number
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
@@ -117,7 +117,7 @@
   "Functions to call on each string.
 Functions are applied in chain from left to right.
 Each function must take one string argument and return string."
-  :tag "Preprocess functions."
+  :tag "Preprocess functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
                     (-all? 'identity (-map #'functionp n)))))
