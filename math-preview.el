@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 0.1.1
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "26.1") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
