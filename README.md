@@ -1,11 +1,13 @@
-`math-preview` uses [MathJax](https://www.mathjax.org/) for displaying TeX math inline in Emacs
+`math-preview` uses [MathJax](https://www.mathjax.org/) for displaying TeX and MathML math inline in Emacs
 buffers.
 
 ![demo](./demo.gif)
 
 ## Installation
 
-*NOTE: it's recommended to use the latest Emacs version with this package. See [this issue](https://gitlab.com/matsievskiysv/math-preview/-/issues/1).*
+*NOTE: it's recommended to use the latest Emacs version with this package. See [this
+issue](https://gitlab.com/matsievskiysv/math-preview/-/issues/1).*
+*NOTE: In case of Schema errors update elisp library and nodejs program to the latest version.*
 
 `math-preview` requires external nodejs program `math-preview`.
 
@@ -128,3 +130,25 @@ $  <=>[+ 2OH-][+ 2H+]
 $\underset{\text{tetrahydroxozincate(II)}}{\ce{[Zn(OH)4]^2-}}$}\]
 
 Copy SVG to kill-ring: $x^2$
+
+MathML:
+<math>
+    <apply>
+        <plus/>
+        <apply>
+            <times/>
+            <ci>a</ci>
+            <apply>
+                <power/>
+                <ci>x</ci>
+                <cn>2</cn>
+            </apply>
+        </apply>
+        <apply>
+            <times/>
+            <ci>b</ci>
+            <ci>x</ci>
+        </apply>
+        <ci>c</ci>
+    </apply>
+</math>
