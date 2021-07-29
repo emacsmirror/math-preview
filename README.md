@@ -70,15 +70,32 @@ is on the image.
 ## Equation preprocessing
 
 It might be useful to preprocess equation strings before passing them to MathJax.
-For this you may use `math-preview-preprocess-functions` customization option.
-Each equation would be modified by functions in this list, chained from left to right.
+For this you may use `math-preview-preprocess-functions`, `math-preview-preprocess-tex-functions`
+and `math-preview-preprocess-mathml-functions` customization options.
+Each equation would be modified by functions in these lists, chained from left to right.
 
-For example, you might want to replace undefined macro with a placeholder.
+`math-preview-preprocess-functions` are applied to both TeX and MathML equations after
+`math-preview-preprocess-mathml-functions` and `math-preview-preprocess-tex-functions` and have
+simpler syntax.
+Each function in this list takes string argument and returns a string.
+For example, you might want to replace some variable with another in your equations.
 ```elisp
 (lambda (s)
-  (concat "\\newcommand{textup}[1]{#1}" s))
+  (s-replace "\\phi" "\\varphi" s))
+```
+
+`math-preview-preprocess-tex-functions` and `math-preview-preprocess-mathml-functions` are applied
+to only TeX and MathML equations respectively.
+They provide greater flexibility but have a bit more complicated syntax.
+Each function in these lists takes list argument in format `(original-string left-mark right-mark)`
+and returns a list in format `(processed-string left-mark right-mark)`.
+For example, you might want to replace undefined macro with a placeholder.
+```elisp
+(lambda (l)
+  (list (concat "\\newcommand{textup}[1]{#1}" (-first-item l)) (-second-item l) (-third-item l)))
 ```
 This function prepends equation with missing definition of the `textup` macro.
+
 
 ## MathJax examples
 

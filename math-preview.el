@@ -135,7 +135,8 @@
 (defcustom math-preview-preprocess-functions (list)
   "Functions to call on each matched string.
 Functions are applied in chain from left to right.
-Each function must take one string argument and return a string.
+Each function must take list argument in format (original-string left-mark right-mark)
+and return list format (processed-string left-mark right-mark).
 These functions are evaluated after `math-preview-preprocess-tex-functions`
 and `math-preview-preprocess-mathml-functions` functions."
   :tag "Preprocess functions"
@@ -146,7 +147,8 @@ and `math-preview-preprocess-mathml-functions` functions."
 (defcustom math-preview-preprocess-tex-functions (list)
   "Functions to call on each TeX string.
 Functions are applied in chain from left to right.
-Each function must take one string argument and return string.
+Each function must take list argument in format (original-string left-mark right-mark)
+and return list format (processed-string left-mark right-mark).
 These functions are evaluated before `math-preview-preprocess-functions` functions."
   :tag "Preprocess TeX functions"
   :type '(repeat function)
@@ -397,15 +399,15 @@ type of equation, left and right marks."
                           (if (string-equal (-third-item match) "MathML")
                               (if (and (listp math-preview-preprocess-mathml-functions)
                                        (> (length math-preview-preprocess-mathml-functions) 0))
-                                  (funcall (apply #'-compose
-                                                  (reverse math-preview-preprocess-mathml-functions))
-                                           (-first-item match))
+                                  (car (funcall (apply #'-compose
+                                                       (reverse math-preview-preprocess-mathml-functions))
+                                                (list (-first-item match) (-fourth-item match) (-fifth-item match))))
                                 (-first-item match))
                             (if (and (listp math-preview-preprocess-tex-functions)
                                      (> (length math-preview-preprocess-tex-functions) 0))
-                                (funcall (apply #'-compose
-                                                (reverse math-preview-preprocess-tex-functions))
-                                         (-second-item match))
+                                (car (funcall (apply #'-compose
+                                                     (reverse math-preview-preprocess-tex-functions))
+                                              (list (-second-item match) (-fourth-item match) (-fifth-item match))))
                               (-second-item match)))
                           (-third-item match))))
 
