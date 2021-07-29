@@ -132,23 +132,10 @@ $\underset{\text{tetrahydroxozincate(II)}}{\ce{[Zn(OH)4]^2-}}$}\]
 Copy SVG to kill-ring: $x^2$
 
 MathML:
-<math>
-    <apply>
-        <plus/>
-        <apply>
-            <times/>
-            <ci>a</ci>
-            <apply>
-                <power/>
-                <ci>x</ci>
-                <cn>2</cn>
-            </apply>
-        </apply>
-        <apply>
-            <times/>
-            <ci>b</ci>
-            <ci>x</ci>
-        </apply>
-        <ci>c</ci>
-    </apply>
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+  <mrow>
+    <mi>a</mi> <mo>&InvisibleTimes;</mo> <msup><mi>x</mi><mn>2</mn></msup>
+    <mo>+</mo><mi>b</mi><mo>&InvisibleTimes;</mo><mi>x</mi>
+    <mo>+</mo><mi>c</mi>
+  </mrow>
 </math>
