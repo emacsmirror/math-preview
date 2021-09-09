@@ -376,8 +376,11 @@ Return list containing original string, string with stripped marks,
 type of equation, left and right marks."
   (let* ((match (->> (math-preview--create-mark-list)
                      (--first (s-matches-p
-                               (s-concat (regexp-quote (car (cdr it)))
-                                         ".+?" (regexp-quote (cdr (cdr it))))
+                               (s-concat "^"
+                                         (regexp-quote (car (cdr it)))
+                                         ".+?"
+                                         (regexp-quote (cdr (cdr it)))
+                                         "$")
                                (s-replace-all '(("\n" . " ")) string)))))
          (type (car match))
          (marks (cdr match))
