@@ -13,7 +13,7 @@
 // For a full copy of the GNU General Public License
 // see <http://www.gnu.org/licenses/>.
 
-var VERSION = 2;
+var VERSION = 3;
 var SCHEMA = {"type": "object",
               "properties": {
                   "version": {
@@ -21,13 +21,16 @@ var SCHEMA = {"type": "object",
                       "enum": [VERSION]
                   },
                   "id": { "type": "number" },
+                  "width": { "type": "number" },
+                  "ex": { "type": "number" },
+                  "cjk": { "type": "number" },
                   "data": { "type": "string" },
                   "type": {
                       "type": "string",
                       "enum": ["TeX", "inline-TeX", "MathML"]
                   }
               },
-              required: ["id", "data", "type"],
+              required: ["id", "ex", "width", "cjk", "data", "type"],
               additionalProperties: false
              };
 
@@ -56,8 +59,14 @@ rl.on('line',
               output.id = input.id;
 
               mjAPI.typeset({
+                  ex: input.ex,
+                  width: input.width,
+                  cjkCharWidth: input.cjk,
                   math: input.data,
+                  linebreaks: input.width > 0,
                   format: input.type,
+                  speakText: false,
+                  equationNumbers: "none",
                   svg:true,
               }, function (data) {
                   if (!data.errors) {
@@ -71,7 +80,7 @@ rl.on('line',
               if (E instanceof SyntaxError) {
                   output.error = "JSON parse error";
               } else if (E instanceof validate.ValidatorResultError) {
-                  output.error = "JSON schema mismatch. Check version comparability";
+                  output.error = "JSON schema mismatch. Check version compatibility";
               } else {
                   output.error = "Unknown error";
               }

@@ -1,6 +1,6 @@
 {
   "name": "math-preview",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Convert math to image",
   "bin": "./math-preview.js",
   "scripts": {

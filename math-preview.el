@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 0.2.1
+;; Version: 0.3.1
 ;; Package-Requires: ((emacs "26.1") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -38,7 +38,7 @@
 
 ;; {{{ Customization
 (defgroup math-preview nil
-  "Preview math inline"
+  "Preview math inline."
   :group  'text
   :tag    "Math Preview"
   :prefix "math-preview-"
@@ -46,11 +46,11 @@
 
 (defface math-preview-face
   '((t :inherit default))
-  "Face for equation")
+  "Face for equation.")
 
 (defface math-preview-processing-face
   '((t :inherit highlight))
-  "Face for equation processing")
+  "Face for equation processing.")
 
 (defcustom math-preview-marks (list)
   "Strings marking beginning and end of equation."
@@ -135,8 +135,9 @@
 (defcustom math-preview-preprocess-functions (list)
   "Functions to call on each matched string.
 Functions are applied in chain from left to right.
-Each function must take list argument in format (original-string left-mark right-mark)
-and return list format (processed-string left-mark right-mark).
+Each function must take list argument in
+format (original-string left-mark right-mark) and return list in
+format (processed-string left-mark right-mark).
 These functions are evaluated after `math-preview-preprocess-tex-functions`
 and `math-preview-preprocess-mathml-functions` functions."
   :tag "Preprocess functions"
@@ -147,8 +148,9 @@ and `math-preview-preprocess-mathml-functions` functions."
 (defcustom math-preview-preprocess-tex-functions (list)
   "Functions to call on each TeX string.
 Functions are applied in chain from left to right.
-Each function must take list argument in format (original-string left-mark right-mark)
-and return list format (processed-string left-mark right-mark).
+Each function must take list argument in
+format (original-string left-mark right-mark) and return list in
+format (processed-string left-mark right-mark).
 These functions are evaluated before `math-preview-preprocess-functions` functions."
   :tag "Preprocess TeX functions"
   :type '(repeat function)
@@ -164,10 +166,32 @@ These functions are evaluated before `math-preview-preprocess-functions` functio
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
                     (-all? 'identity (-map #'functionp n)))))
+
+(defcustom math-preview-mathjax-ex 6
+  "Set MathJax ex size."
+  :tag "Ex size"
+  :type 'number
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
+
+(defcustom math-preview-mathjax-cjk-width 13
+  "Set MathJax CJK character width."
+  :tag "CJK width"
+  :type 'number
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
+
+(defcustom math-preview-mathjax-max-width 0
+  "Set MathJax max line width in ex.
+If >0, line splitting will be enabled."
+  :tag "Max width"
+  :type 'number
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
 ;; }}}
 
 ;; {{{ Variables
-(defvar math-preview--schema-version 2 "math-preview json schema version.")
+(defvar math-preview--schema-version 3 "`math-preview` json schema version.")
 
 (defvar math-preview--queue nil "Job queue.")
 
@@ -296,6 +320,9 @@ Call `math-preview--process-input' for strings with carriage return."
                       string)))
       (let ((msg (concat (json-encode (list :version math-preview--schema-version
                                             :id id
+                                            :ex math-preview-mathjax-ex
+                                            :cjk math-preview-mathjax-cjk-width
+                                            :width math-preview-mathjax-max-width
                                             :data string
                                             :type type))
                          "\n")))
