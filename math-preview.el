@@ -52,12 +52,6 @@
   '((t :inherit highlight))
   "Face for equation processing.")
 
-(defcustom math-preview-marks (list)
-  "Strings marking beginning and end of equation."
-  :tag "Equation marks (DEPRECATED)"
-  :type '(alist :key-type string :value-type string)
-  :safe #'math-preview--check-marks)
-
 (defcustom math-preview-tex-marks
   '(("\\begin{equation}" . "\\end{equation}")
     ("\\begin{equation*}" . "\\end{equation*}")
@@ -83,15 +77,17 @@
   :type '(alist :key-type string :value-type string)
   :safe #'math-preview--check-marks)
 
+(defcustom math-preview-asciidoc-marks
+  '(("`" . "`"))
+  "Strings marking beginning and end of AsciiMath equation."
+  :tag "AsciiMath equation marks"
+  :type '(alist :key-type string :value-type string)
+  :safe #'math-preview--check-marks)
+
 (defcustom math-preview-command "math-preview"
   "TeX conversion program name."
   :tag "Command name"
   :type 'string)
-
-(defcustom math-preview-inline-style nil
-  "Use smaller math operators so equations would take less vertical space."
-  :tag "Display in inline style (DEPRECATED)"
-  :type 'boolean)
 
 (defcustom math-preview-raise 0.4
   "Adjust image vertical position."
@@ -167,6 +163,16 @@ These functions are evaluated before `math-preview-preprocess-functions` functio
   :safe (lambda (n) (and (listp n)
                     (-all? 'identity (-map #'functionp n)))))
 
+(defcustom math-preview-preprocess-asciimath-functions (list)
+  "Functions to call on each AsciiMath string.
+Functions are applied in chain from left to right.
+Each function must take one string argument and return string.
+These functions are evaluated before `math-preview-preprocess-functions` functions."
+  :tag "Preprocess AsciiMath functions"
+  :type '(repeat function)
+  :safe (lambda (n) (and (listp n)
+                    (-all? 'identity (-map #'functionp n)))))
+
 (defcustom math-preview-mathjax-ex 6
   "Set MathJax ex size."
   :tag "Ex size"
@@ -191,7 +197,7 @@ If >0, line splitting will be enabled."
 ;; }}}
 
 ;; {{{ Variables
-(defvar math-preview--schema-version 3 "`math-preview` json schema version.")
+(defvar math-preview--schema-version 4 "`math-preview` json schema version.")
 
 (defvar math-preview--queue nil "Job queue.")
 
