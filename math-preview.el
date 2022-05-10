@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 0.3.1
+;; Version: 4.0
 ;; Package-Requires: ((emacs "26.1") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -52,39 +52,7 @@
   '((t :inherit highlight))
   "Face for equation processing.")
 
-(defcustom math-preview-tex-marks
-  '(("\\begin{equation}" . "\\end{equation}")
-    ("\\begin{equation*}" . "\\end{equation*}")
-    ("\\[" . "\\]")
-    ("$$" . "$$"))
-  "Strings marking beginning and end of TeX equation."
-  :tag "TeX equation marks"
-  :type '(alist :key-type string :value-type string)
-  :safe #'math-preview--check-marks)
-
-(defcustom math-preview-tex-inline-marks
-  '(("\\(" . "\\)")
-    ("$" . "$"))
-  "Strings marking beginning and end of TeX inline equation."
-  :tag "TeX equation inline marks"
-  :type '(alist :key-type string :value-type string)
-  :safe #'math-preview--check-marks)
-
-(defcustom math-preview-mathml-marks
-  '(("<math" . "</math>"))
-  "Strings marking beginning and end of MathML equation."
-  :tag "MathML equation marks"
-  :type '(alist :key-type string :value-type string)
-  :safe #'math-preview--check-marks)
-
-(defcustom math-preview-asciidoc-marks
-  '(("`" . "`"))
-  "Strings marking beginning and end of AsciiMath equation."
-  :tag "AsciiMath equation marks"
-  :type '(alist :key-type string :value-type string)
-  :safe #'math-preview--check-marks)
-
-(defcustom math-preview-command "math-preview"
+(defcustom math-preview-command "/media/mstorage/Projects/Emacs/math-preview/math-preview.js"
   "TeX conversion program name."
   :tag "Command name"
   :type 'string)
@@ -100,7 +68,7 @@
 (defcustom math-preview-margin '(5 . 5)
   "Adjust image margin."
   :tag "Image margin"
-  :type '(cons :tag "Configure margins" integer integer)
+  :type '(cons :tag "Configure margins" (integer :tag "Horizontal") (integer :tag "Vertical"))
   :safe (lambda (l) (and (consp l)
                     (integerp (car l))
                     (> (car l) 0)
@@ -134,70 +102,441 @@ Functions are applied in chain from left to right.
 Each function must take list argument in
 format (original-string left-mark right-mark) and return list in
 format (processed-string left-mark right-mark).
-These functions are evaluated after `math-preview-preprocess-tex-functions`
-and `math-preview-preprocess-mathml-functions` functions."
+These functions are evaluated after `math-preview-preprocess-tex-functions'
+and `math-preview-preprocess-mathml-functions' functions."
   :tag "Preprocess functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
-                    (-all? 'identity (-map #'functionp n)))))
+                    (-all? #'functionp n))))
 
-(defcustom math-preview-preprocess-tex-functions (list)
+(defgroup math-preview-tex nil
+  "TeX options."
+  :group  'math-preview
+  :prefix "math-preview-tex-")
+
+(defcustom math-preview-tex-marks
+  '(("\\begin{equation}" "\\end{equation}")
+    ("\\begin{equation*}" "\\end{equation*}")
+    ("\\[" "\\]")
+    ("$$" "$$"))
+  "Strings marking beginning and end of TeX equation."
+  :tag "TeX equation marks"
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :safe #'math-preview--check-marks)
+
+(defcustom math-preview-tex-marks-inline
+  '(("\\(" "\\)")
+    ("$" "$"))
+  "Strings marking beginning and end of TeX inline equation."
+  :tag "TeX equation inline marks"
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :safe #'math-preview--check-marks)
+
+(defcustom math-preview-tex-preprocess-functions (list)
   "Functions to call on each TeX string.
 Functions are applied in chain from left to right.
 Each function must take list argument in
 format (original-string left-mark right-mark) and return list in
 format (processed-string left-mark right-mark).
-These functions are evaluated before `math-preview-preprocess-functions` functions."
+These functions are evaluated before `math-preview-preprocess-functions' functions."
   :tag "Preprocess TeX functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
-                    (-all? 'identity (-map #'functionp n)))))
+                    (-all? #'functionp n))))
 
-(defcustom math-preview-preprocess-mathml-functions (list)
+(defcustom math-preview-tex-macros
+  `(("ddx" . ("\\frac{d#2}{d#1}" 2 "t")))
+  "List of predefined macros. `\\' in the name of the macro must be omitted.
+If macro does not have any arguments, then macro definition is a string.
+If macro have arguments, then macro definition is a list, where first item is a definition string, second item is
+a number of macro arguments and third argument is the optional default value for the first argument.
+More information at the page http://docs.mathjax.org/en/latest/input/tex/macros.html#tex-macros and
+http://docs.mathjax.org/en/latest/input/tex/extensions/configmacros.html#configmacros-options."
+  :tag "Macro list"
+  :type '(alist :key-type (string :tag "Name")
+                :value-type (choice :tag "Definition"
+                                    (string :tag "Without arguments")
+                                    (list :tag "With arguments"
+                                          (string :tag "Definition")
+                                          (integer :tag "Number of arguments")
+                                          (choice :tag "Default value"
+                                                  (const :tag "None" nil)
+                                                  (string :tag "Default value")))
+                                    (list :tag "Template based"
+                                          (string :tag "Definition")
+                                          (integer :tag "Number of arguments")
+                                          (repeat :tag "Templates"
+                                                  (string :tag "Template")))))
+  :safe (lambda (n) (and (listp n)
+                    (-all? (lambda (x) (and (stringp (car x))
+			               (or (stringp (cdr x))
+			                   (listp (cdr x)))))
+                           n))))
+
+(defcustom math-preview-tex-environments
+  `(("braced" . ("\\left\\{" "\\right\\}")))
+  "List of predefined environments. `\\' in the name of the macro must be omitted.
+If environment does not have any arguments, then environment definition is a pair of strings.
+If environment have arguments, then environment definition is a list, where first two items are pair of
+definition strings, third item is a number of environment arguments and fourth argument is the optional
+default value for the first argument.
+More information at the page http://docs.mathjax.org/en/latest/input/tex/environments.html#tex-environments and
+http://docs.mathjax.org/en/latest/input/tex/extensions/configenvironments.html#configenvironments-options."
+  :tag "Environment list"
+  :type '(alist :key-type (string :tag "Name")
+                :value-type (choice :tag "Definition"
+                                    (list :tag "Without arguments"
+                                          (string :tag "Before")
+                                          (string :tag "After "))
+                                    (list :tag "With arguments"
+                                          (string :tag "Before")
+                                          (string :tag "After ")
+                                          (integer :tag "Number of arguments")
+                                          (choice :tag "Default value"
+                                                  (const :tag "None" nil)
+                                                  (string :tag "Default value")))))
+  :safe (lambda (n) (and (listp n)
+                    (-all? (lambda (x) (and (stringp (car x))
+			               (listp (cdr x))))
+                           n))))
+
+(defgroup math-preview-tex-packages nil
+  "TeX package options."
+  :group  'math-preview-tex
+  :prefix "math-preview-tex-package-")
+
+(defcustom math-preview-tex-default-packages '("autoload")
+  "This array lists the names of the packages (extensions) that should be initialized by the TeX input processor.
+Packages not in this list must be loaded using `\\require{}' macro or via `autoload' mechanism.
+Extension list is available here http://docs.mathjax.org/en/latest/input/tex/extensions/index.html.
+`base', `require', `newcommand' and `configmacros' are always loaded."
+  :tag "Default TeX packages"
+  :type '(repeat string)
+  :safe (lambda (l) (-all? 'stringp l)))
+
+(defgroup math-preview-tex-packages-ams nil
+  "TeX ams package options.
+http://docs.mathjax.org/en/latest/input/tex/extensions/ams.html#tex-ams-options"
+  :group  'math-preview-tex-packages
+  :prefix "math-preview-tex-package-ams-")
+
+(defcustom math-preview-tex-packages-ams-multline-width "100%"
+  "The width to use for multline environments."
+  :tag "Multline width"
+  :type 'string
+  :safe #'stringp)
+
+(defcustom math-preview-tex-packages-ams-multline-indent "1em"
+  "The margin to use on both sides of multline environments."
+  :tag "Multline indent"
+  :type 'string
+  :safe #'stringp)
+
+(defgroup math-preview-tex-packages-amscd nil
+  "TeX amscd package options.
+http://docs.mathjax.org/en/latest/input/tex/extensions/amscd.html#tex-amscd-options"
+  :group  'math-preview-tex-packages
+  :prefix "math-preview-tex-package-amscd-")
+
+(defcustom math-preview-tex-packages-amsdc-colspace "5pt"
+  "This gives the amount of space to use between columns in the commutative diagram."
+  :tag "Column space"
+  :type 'string
+  :safe #'stringp)
+
+(defcustom math-preview-tex-packages-amsdc-rowspace "5pt"
+  "This gives the amount of space to use between rows in the commutative diagram."
+  :tag "Row space"
+  :type 'string
+  :safe #'stringp)
+
+(defcustom math-preview-tex-packages-amsdc-harrowsize "2.75em"
+  "This gives the minimum size for horizontal arrows in the commutative diagram."
+  :tag "Horizontal arrow size"
+  :type 'string
+  :safe #'stringp)
+
+(defcustom math-preview-tex-packages-amsdc-varrowsize "2.75em"
+  "This gives the minimum size for vertical arrows in the commutative diagram."
+  :tag "Vertical arrow size"
+  :type 'string
+  :safe #'stringp)
+
+(defcustom math-preview-tex-packages-amsdc-hide-horizontal-labels nil
+  "This determines whether horizontal arrows with labels above or below will use `\\smash' in order to hide the
+height of the labels. (Labels above or below horizontal arrows can cause excess space between rows,
+so setting this to true can improve the look of the diagram.)"
+  :tag "Hide horizontal labels"
+  :type 'boolean
+  :safe t)
+
+(defgroup math-preview-tex-packages-autoload nil
+  "TeX autoload package options.
+http://docs.mathjax.org/en/latest/input/tex/extensions/autoload.html#tex-autoload-options"
+  :group  'math-preview-tex-packages
+  :prefix "math-preview-tex-package-autoload-")
+
+(defcustom math-preview-tex-packages-autoload-packages
+  '(("action" . ("toggle" "mathtip" "texttip"))
+    ("amscd" . (() ("CD")))
+    ("bbox" . ("bbox"))
+    ("boldsymbol" . ("boldsymbol"))
+    ("braket" . ("bra" "ket" "braket" "set" "Bra" "Ket" "Braket" "Set" "ketbra" "Ketbra"))
+    ("cancel" . ("cancel" "bcancel" "xcancel" "cancelto"))
+    ("color" . ("color" "definecolor" "textcolor" "colorbox" "fcolorbox"))
+    ("enclose" . ("enclose"))
+    ("extpfeil" . ("xtwoheadrightarrow" "xtwoheadleftarrow" "xmapsto"
+                   "xlongequal" "xtofrom" "Newextarrow"))
+    ("html" . ("href" "class" "style" "cssId"))
+    ("mhchem" . ("ce" "pu"))
+    ("unicode" . ("unicode"))
+    ("upgreek" . ("upalpha" "upbeta" "upchi" "updelta" "Updelta" "upepsilon"
+                "upeta" "upgamma" "Upgamma" "upiota" "upkappa" "uplambda"
+                "Uplambda" "upmu" "upnu" "upomega" "Upomega" "upomicron"
+                "upphi" "Upphi" "uppi" "Uppi" "uppsi" "Uppsi" "uprho"
+                "upsigma" "Upsigma" "uptau" "uptheta" "Uptheta" "upupsilon"
+                "Upupsilon" "upvarepsilon" "upvarphi" "upvarpi" "upvarrho"
+                "upvarsigma" "upvartheta" "upxi" "Upxi" "upzeta"))
+    ("verb" . ("verb")))
+  "Adding the autoload extension to the packages array defines an autoload sub-block to the tex configuration block.
+This block contains key: value pairs where the key is a `TeX' package name, and the value is an array of macros
+that cause that package to be loaded, or an array consisting of two arrays,
+the first giving names of macros and the second names of environments; the first time any of them are used,
+the extension will be loaded automatically."
+  :tag "Packages"
+  :type '(alist :tag "Package"
+                :key-type (string :tag "Name")
+                :value-type (choice (repeat :tag "Macros"
+                                            (string :tag "Macro"))
+                                    (list :tag "Macros and Environments"
+                                          (repeat :tag "Macros"
+                                                  (string :tag "Macro"))
+                                          (repeat :tag "Environments"
+                                                  (string :tag "Environment")))))
+  :safe (lambda (n) (and (listp n)
+                    (-all? (lambda (x) (and (stringp (car x))
+			               (listp (cdr x))
+			               (or (-all? #'stringp (cdr x))
+			                   (and (listp (-first-item (cdr x)))
+				                (listp (-second-item (cdr x)))
+				                (-all? #'stringp (-first-item (cdr x)))
+				                (-all? #'stringp (-second-item (cdr x)))))))
+                           n))))
+
+(defgroup math-preview-tex-packages-physics nil
+  "TeX physics package options.
+http://docs.mathjax.org/en/latest/input/tex/extensions/physics.html#physics-options"
+  :group  'math-preview-tex-packages
+  :prefix "math-preview-tex-package-physics-")
+
+(defcustom math-preview-tex-packages-physics-italicdiff nil
+  "This corresponds to the `italicdiff' option of the `physics' `LaTeX' package to use italic form for the `d' in
+the `\differential' and `\derivative' commands."
+  :tag "Italic diff"
+  :type 'boolean
+  :safe t)
+
+(defcustom math-preview-tex-packages-physics-arrowdel nil
+  "This corresponds to the `arrowdel' option of the `physics' `LaTeX' package to use vector notation over the
+`nabla' symbol."
+  :tag "Arrow del"
+  :type 'boolean
+  :safe t)
+
+(defgroup math-preview-mathml nil
+  "MathML options."
+  :group  'math-preview
+  :prefix "math-preview-mathml-")
+
+(defcustom math-preview-mathml-marks
+  '(("<math" "</math>"))
+  "Strings marking beginning and end of MathML equation."
+  :tag "MathML equation marks"
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :safe #'math-preview--check-marks)
+
+(defcustom math-preview-mathml-marks-inline
+  '(("<mathinline" "</mathinline>"))
+  "Strings marking beginning and end of MathML inline equation."
+  :tag "MathML equation inline marks"
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :safe #'math-preview--check-marks)
+
+(defcustom math-preview-mathml-preprocess-functions (list)
   "Functions to call on each MathML string.
 Functions are applied in chain from left to right.
 Each function must take one string argument and return string.
-These functions are evaluated before `math-preview-preprocess-functions` functions."
+These functions are evaluated before `math-preview-preprocess-functions' functions."
   :tag "Preprocess MathML functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
-                    (-all? 'identity (-map #'functionp n)))))
+                    (-all? #'functionp n))))
 
-(defcustom math-preview-preprocess-asciimath-functions (list)
+(defgroup math-preview-asciimath nil
+  "AsciiDoc options."
+  :group  'math-preview
+  :prefix "math-preview-asciimath-")
+
+(defcustom math-preview-asciimath-marks
+  '(("```" "```"))
+  "Strings marking beginning and end of AsciiMath equation."
+  :tag "AsciiMath equation marks"
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :safe #'math-preview--check-marks)
+
+(defcustom math-preview-asciimath-marks-inline
+  '(("`" "`"))
+  "Strings marking beginning and end of AsciiMath inline equation."
+  :tag "AsciiMath equation inline marks"
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :safe #'math-preview--check-marks)
+
+(defcustom math-preview-asciimath-preprocess-functions (list)
   "Functions to call on each AsciiMath string.
 Functions are applied in chain from left to right.
 Each function must take one string argument and return string.
-These functions are evaluated before `math-preview-preprocess-functions` functions."
+These functions are evaluated before `math-preview-preprocess-functions' functions."
   :tag "Preprocess AsciiMath functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
-                    (-all? 'identity (-map #'functionp n)))))
+                    (-all? #'functionp n))))
 
-(defcustom math-preview-mathjax-ex 6
-  "Set MathJax ex size."
+(defgroup math-preview-mathjax nil
+  "MathJax options."
+  :group  'math-preview
+  :prefix "math-preview-mathjax-")
+
+(defcustom math-preview-mathjax-em 16
+  "Number giving the number of pixels in an `em' for the surrounding font."
+  :tag "Em size"
+  :type 'integer
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
+
+(defcustom math-preview-mathjax-ex 8
+  "Number giving the number of pixels in an `ex' for the surrounding font."
   :tag "Ex size"
-  :type 'number
+  :type 'integer
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
 
-(defcustom math-preview-mathjax-cjk-width 13
-  "Set MathJax CJK character width."
-  :tag "CJK width"
-  :type 'number
-  :safe (lambda (n) (and (numberp n)
-                    (> n 0))))
+(defcustom math-preview-mathjax-container-width #'frame-pixel-width
+  "number giving the width of the container, in pixels."
+  :tag "Container width"
+  :type '(choice (integer :tag "Constant value")
+                 (function :tag "Calculate using function"))
+  :safe (lambda (n) (or (functionp n)
+                   (and (numberp n)
+                        (> n 0)))))
 
-(defcustom math-preview-mathjax-max-width 0
-  "Set MathJax max line width in ex.
-If >0, line splitting will be enabled."
+(defcustom math-preview-mathjax-line-width #'window-max-chars-per-line
+  "Number giving the line-breaking width in `em' units."
   :tag "Max width"
+  :type '(choice (integer :tag "Constant value")
+                 (function :tag "Calculate using function"))
+  :safe (lambda (n) (or (functionp n)
+                   (and (numberp n)
+                        (> n 0)))))
+
+(defcustom math-preview-mathjax-scale 1
+  "Number giving a scaling factor to apply to the resulting conversion."
+  :tag "Scale"
   :type 'number
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
+
+(defgroup math-preview-mathjax-loader nil
+  "MathJax loader options.
+http://docs.mathjax.org/en/latest/options/startup/loader.html"
+  :group  'math-preview-mathjax
+  :prefix "math-preview-mathjax-loader-")
+
+(defcustom math-preview-mathjax-loader-load (list "input/tex-full" "input/mml" "input/asciimath" "output/svg")
+  "This array lists the components that you want to load."
+  :tag "Load list"
+  :type '(repeat string)
+  :safe (lambda (l) (-all? 'stringp l)))
+
+(defgroup math-preview-mathjax-tex nil
+  "The options below control the operation of the TeX input processor that is run when you include `input/tex',
+`input/tex-full', or `input/tex-base' in the load array of the loader block of your MathJax configuration.
+http://docs.mathjax.org/en/latest/options/input/tex.html"
+  :group  'math-preview-mathjax
+  :prefix "math-preview-mathjax-tex-")
+
+(defcustom math-preview-mathjax-tex-process-escapes t
+  "When set to true, you may use `\\$' to represent a literal dollar sign, rather than using it as a math delimiter,
+and `\\\\' to represent a literal backslash."
+  :tag "Process escapes"
+  :type 'boolean
+  :safe t)
+
+(defcustom math-preview-mathjax-tex-digits "/^(?:[0-9]+(?:\\{,\\}[0-9]*)?|\\{,\\}[0-9]+)/"
+  "This gives a regular expression that is used to identify numbers during the parsing of your TeX expressions.
+By default, the decimal point is `.' and you can use `,' between every three digits before that.
+If you want to use `,' as the decimal indicator, use `/^(?:[0-9]+(?:\\{,\\}[0-9]*)?|\\{,\\}[0-9]+)/'"
+  :tag "Digits"
+  :type 'string
+  :safe 'stringp)
+
+(defcustom math-preview-mathjax-tags-side "right"
+  "This specifies the side on which `\\tag{}' macros will place the tags, and on which automatic equation numbers
+will appear. Set it to `left' to place the tags on the left-hand side."
+  :tag "Tags side"
+  :type '(choice (const :tag "Left" "left")
+                 (const :tag "Right" "right"))
+  :safe 'stringp)
+
+(defgroup math-preview-mathjax-svg nil
+  "The options below control the operation of the SVG output processor that is run when you include `output/svg'
+in the load array of the loader block.
+http://docs.mathjax.org/en/latest/options/output/svg.html#svg-options"
+  :group  'math-preview-mathjax
+  :prefix "math-preview-mathjax-svg-")
+
+(defcustom math-preview-mathjax-svg-scale 1
+  "Global scaling factor for all expressions."
+  :tag "Scale"
+  :type 'number
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
+
+(defcustom math-preview-mathjax-svg-min-scale 0.5
+  "Smallest scaling factor to use."
+  :tag "Min scale"
+  :type 'number
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
+
+(defcustom math-preview-mathjax-svg-mathml-spacing nil
+  "True for `MathML' spacing rules, false for `TeX' rules."
+  :tag "MathML spacing"
+  :type 'boolean
+  :safe t)
+
+(defcustom math-preview-mathjax-svg-ex-factor 0.5
+  "Default size of `ex' in `em' units."
+  :tag "Ex factor"
+  :type 'number
+  :safe (lambda (n) (and (numberp n)
+                    (> n 0))))
+
+(defcustom math-preview-mathjax-svg-display-align "center"
+  "Default for `indentalign' when set to `auto'."
+  :tag "Display align"
+  :type '(choice (const :tag "Left" "left")
+                 (const :tag "Center" "center")
+                 (const :tag "Right" "right")))
+
+(defcustom math-preview-mathjax-svg-display-indent "0"
+  "Default for `indentshift' when set to `auto'."
+  :tag "Display indent"
+  :type 'string
+  :safe 'stringp)
 ;; }}}
 
 ;; {{{ Variables
-(defvar math-preview--schema-version 4 "`math-preview` json schema version.")
+(defvar math-preview--schema-version 4 "`math-preview' json schema version.")
 
 (defvar math-preview--queue nil "Job queue.")
 
@@ -223,7 +562,7 @@ If >0, line splitting will be enabled."
 (defvar math-preview--input-buffer ""
   "Buffer holds input message.")
 
-(defvar math-preview--debug-json nil
+(defvar math-preview--debug-json t
   "Switch for enabling JSON dump into `math-preview--output-buffer'.")
 
 (put 'math-preview 'face 'math-preview-face)
@@ -235,6 +574,52 @@ If >0, line splitting will be enabled."
 ;; }}}
 
 ;; {{{ Process
+(defun math-preview--json-bool (arg)
+  "Convert elisp boolean to JSON.
+JSON encoder cannot distinguish `null' and `false', therefore we need to use special object for `false'."
+  (if arg arg json-false))
+
+(defun math-preview--encode-arguments ()
+  "Encode program arguments in JSON strings."
+  (let* ((loader (list (cons "loader" (list (cons "load" math-preview-mathjax-loader-load)))))
+         (svg (list (cons "svg" (list
+                                 (cons "scale" math-preview-mathjax-svg-scale)
+                                 (cons "minScale" math-preview-mathjax-svg-min-scale)
+                                 (cons "mathmlSpacing" (math-preview--json-bool math-preview-mathjax-svg-mathml-spacing))
+                                 (cons "exFactor" math-preview-mathjax-svg-ex-factor)
+                                 (cons "displayAlign" math-preview-mathjax-svg-display-align)
+                                 (cons "displayIndent" math-preview-mathjax-svg-display-indent)))))
+         (tex (list (cons "tex" (list
+                                 (cons"processEscapes" (math-preview--json-bool math-preview-mathjax-svg-mathml-spacing))
+                                 (cons "digits" math-preview-mathjax-tex-digits)
+                                 (cons "tagSide" math-preview-mathjax-tags-side)))))
+         (tex-macros (list (cons "tex/macros" math-preview-tex-macros)))
+         (tex-environments (list (cons "tex/environments" math-preview-tex-environments)))
+         (ams (list (cons "multlineWidth" math-preview-tex-packages-ams-multline-width)
+                    (cons "multlineIndent" math-preview-tex-packages-ams-multline-indent)))
+         (amscd (list (cons "colspace" math-preview-tex-packages-amsdc-colspace)
+                      (cons "rowspace" math-preview-tex-packages-amsdc-rowspace)
+                      (cons "harrowsize" math-preview-tex-packages-amsdc-harrowsize)
+                      (cons "varrowsize" math-preview-tex-packages-amsdc-varrowsize)
+                      (cons "hideHorizontalLabels" (math-preview--json-bool
+                                              math-preview-tex-packages-amsdc-hide-horizontal-labels))))
+         (autoload math-preview-tex-packages-autoload-packages)
+         (physics (list (cons "italicdiff" (math-preview--json-bool math-preview-tex-packages-physics-italicdiff))
+                        (cons "arrowdel" (math-preview--json-bool math-preview-tex-packages-physics-arrowdel))))
+         (tex-packages (list (cons "tex/packages" (list (cons "tex/packages/list" math-preview-tex-default-packages)
+                                                        (cons "ams" ams)
+                                                        (cons "amscd" amscd)
+                                                        (cons "autoload" autoload)
+                                                        (cons "physics" physics))))))
+    ;; assume all nulls are wrongfully encoded empty lists
+    (--map (s-replace "null" "[]" it) (list
+                                       (json-encode-alist loader)
+                                       (json-encode-alist svg)
+                                       (json-encode-alist tex)
+                                       (json-encode-alist tex-macros)
+                                       (json-encode-alist tex-environments)
+                                       (json-encode-alist tex-packages)))))
+
 ;;;###autoload
 (defun math-preview-start-process ()
   "Start math-preview process."
@@ -246,11 +631,15 @@ If >0, line splitting will be enabled."
       (let ((p (executable-find math-preview-command)))
         (unless p
           (error "%s is not an executable" math-preview-command))
-        (setq proc (start-process "math-preview" nil math-preview-command))
+        (setq proc (make-process :name "math-preview"
+                                 :command (-concat (list math-preview-command)
+                                                   (math-preview--encode-arguments))
+                                 :coding 'utf-8
+                                 :noquery t
+                                 :connection-type 'pipe
+                                 :filter #'math-preview--process-filter))
         (unless (process-live-p proc)
-          (error "Cannot start process"))
-        (set-process-query-on-exit-flag proc nil)
-        (set-process-filter proc #'math-preview--process-filter)))
+          (error "Cannot start process"))))
     proc))
 
 ;;;###autoload
@@ -264,7 +653,7 @@ If >0, line splitting will be enabled."
       (kill-process proc))))
 
 (defun math-preview--process-filter (_process message)
-  "Handle `MESSAGE` from math-preview `PROCESS`.
+  "Handle `MESSAGE' from math-preview `PROCESS'.
 Call `math-preview--process-input' for strings with carriage return."
   (setq message
         (s-replace "" ""
@@ -283,31 +672,36 @@ Call `math-preview--process-input' for strings with carriage return."
       (insert "Incoming:")
       (insert message)
       (insert "\n")))
-  (let* ((msg (json-read-from-string message))
-         (id (cdr (assoc 'id msg)))
-         (data (cdr (assoc 'data msg)))
-         (err (cdr (assoc 'error msg))))
-    (let ((o (cdr (--first (= (car it) id) math-preview--queue))))
-      (setq math-preview--queue
-            (--remove (= (car it) id) math-preview--queue))
-      (if o (if err (progn (message "%s" (elt err 0)) (delete-overlay o))
-                (overlay-put o 'category 'math-preview)
-                (overlay-put o 'display
-                             (list (list 'raise math-preview-raise)
-                                   (cons 'image
-                                         (list :type 'svg
-                                               :data data
-                                               :scale math-preview-scale
-                                               :pointer 'hand
-                                               :margin math-preview-margin
-                                               :relief math-preview-relief)))))
-        (when err (message "%s" err))))))
+  (ignore-errors
+      (let* ((msg (json-read-from-string message))
+             (id (cdr (assoc 'id msg)))
+             (type (cdr (assoc 'type msg)))
+             (payload (cdr (assoc 'payload msg)))
+             target-overlay)
+        (unless (= id -1)
+          (setq target-overlay (cdr (--first (= (car it) id) math-preview--queue)))
+          (setq math-preview--queue
+                (--remove (= (car it) id) math-preview--queue)))
+        (cond
+         ((string= "error")) (message "%s" payload) (when target-overlay (delete-overlay target-overlay)))
+        ((string= "svg")
+         (overlay-put target-overlay 'category 'math-preview)
+         (overlay-put target-overlay 'display
+                      (list (list 'raise math-preview-raise)
+                            (cons 'image
+                                  (list :type 'svg
+                                        :data data
+                                        :scale math-preview-scale
+                                        :pointer 'hand
+                                        :margin math-preview-margin
+                                        :relief math-preview-relief))))))))
 
-(defun math-preview--submit (beg end string type)
+(defun math-preview--submit (beg end string type inline)
   "Submit equation processing job.
-`BEG` and `END` are the positions of the overlay region.
-`STRING` is an equation.
-`TYPE` is `tex` or `tex-inline` or `mathml`"
+`BEG' and `END' are the positions of the overlay region.
+`STRING' is an equation.
+`TYPE' is `tex' or `mathml' or `asciimath'.
+`INLINE' is a display style flag."
   (unless (math-preview--overlays beg end)
     (let ((proc (math-preview-start-process))
           (o (make-overlay beg end))
@@ -341,7 +735,7 @@ Call `math-preview--process-input' for strings with carriage return."
 
 ;; {{{ Search
 (defun math-preview--overlays (beg end)
-  "Get math-preview overlays in region between `BEG` and `END`."
+  "Get math-preview overlays in region between `BEG' and `END'."
   (->> (if (= beg end) (overlays-at beg) (overlays-in beg end))
        (--filter (let ((cat (overlay-get it 'category)))
                    (or (eq cat 'math-preview)
@@ -354,19 +748,18 @@ Call `math-preview--process-input' for strings with carriage return."
        (--map (delete-overlay it))))
 
 (defun math-preview--check-marks (arg)
-  "Check that ARG is a valid `math-preview-marks` value."
+  "Check that ARG is a valid `math-preview-marks' value."
   (and (listp arg)
-       (consp (car arg))
        (not (-filter 'null (--map (and
-	                           (consp it)
-	                           (stringp (car it))
-	                           (stringp (cdr it))
-	                           (not (s-matches? "^\s*$" (car it)))
-	                           (not (s-matches? "^\s*$" (cdr it))))
+	                           (listp it)
+	                           (stringp (-first-item it))
+	                           (stringp (-second-item it))
+	                           (not (s-matches? "^\s*$" (-first-item it)))
+	                           (not (s-matches? "^\s*$" (-second-item it))))
 			          arg)))))
 
 (defun math-preview--find-gaps (beg end)
-  "Find gaps in math-preview overlays in region between `BEG` and `END`."
+  "Find gaps in math-preview overlays in region between `BEG' and `END'."
   (let ((o (math-preview--overlays beg end)))
     (->> (-zip (-concat (list beg) (-sort #'< (-map #'overlay-end o)))
                (-concat (-sort #'< (-map #'overlay-start o)) (list end)))
@@ -374,7 +767,7 @@ Call `math-preview--process-input' for strings with carriage return."
          (--filter (< (car it) end)))))
 
 (defun math-preview--search (beg end)
-  "Search for equations in region between `BEG` and `END`."
+  "Search for equations in region between `BEG' and `END'."
   (let ((text (buffer-substring beg end))
         (regex (concat "\\(?:"
                        (s-join "\\|"
@@ -393,19 +786,28 @@ Call `math-preview--process-input' for strings with carriage return."
                       (+ beg (cdr it)))))))
 
 (defun math-preview--create-mark-list ()
-  "Concatenate and reformat mark lists."
-  (->> `((,(if math-preview-inline-style "inline-TeX" "TeX") . math-preview-marks)
-         ("TeX" . math-preview-tex-marks)
-         ("inline-TeX" . math-preview-tex-inline-marks)
-         ("MathML" . math-preview-mathml-marks))
-       (--filter (symbol-value (cdr it)))
-       (--map (-annotate (lambda (x) (car it)) (symbol-value (cdr it))))
+  "Concatenate and reformat mark lists.
+Output list format `((type . inline?) . (left . right))'"
+  (->> (list
+        (cons (cons "tex" nil) (--map (cons (-first-item it) (-second-item it))
+                                      math-preview-tex-marks))
+        (cons (cons "tex" t) (--map (cons (-first-item it) (-second-item it))
+                                    math-preview-tex-marks-inline))
+        (cons (cons "mathml" nil) (--map (cons (-first-item it) (-second-item it))
+                                         math-preview-mathml-marks))
+        (cons (cons "mathml" t) (--map (cons (-first-item it) (-second-item it))
+                                       math-preview-mathml-marks-inline))
+        (cons (cons "asciimath" nil) (--map (cons (-first-item it) (-second-item it))
+                                            math-preview-asciimath-marks))
+        (cons (cons "asciimath" t) (--map (cons (-first-item it) (-second-item it))
+                                          math-preview-asciimath-marks-inline)))
+       (--map (-zip-fill (car it) '() (cdr it)))
        (-flatten-n 1)
        (--sort (> (length (car (cdr it))) (length (car (cdr other)))))))
 
 (defun math-preview--extract-match (string)
-  "Extract match data from given `STRING`.
-Return list containing original string, string with stripped marks,
+  "Extract match data from given `STRING'.
+Return hash table containing original string, string with stripped marks,
 type of equation, left and right marks."
   (let* ((match (->> (math-preview--create-mark-list)
                      (--first (s-matches-p
@@ -415,26 +817,38 @@ type of equation, left and right marks."
                                          (regexp-quote (cdr (cdr it)))
                                          "$")
                                (s-replace-all '(("\n" . " ")) string)))))
-         (type (car match))
          (marks (cdr match))
          (lmark (car marks))
          (rmark (cdr marks))
          (stripped (s-chop-suffix rmark (s-chop-prefix lmark string))))
-    (list string stripped type lmark rmark)))
+    #s(hash-table size 6 test equal data ("string" string
+                                          "stripped" stripped
+                                          "type" (car (car match))
+                                          "inline" (cdr (car match))
+                                          "lmark" lmark
+                                          "rmark" rmark)))
 ;; }}}
 
 ;; {{{ User interface
 (defun math-preview--submit-region (region)
-  "Submit `REGION` to processing program."
+  "Submit `REGION' to processing program."
   (let* ((beg (car region))
          (end (cdr region))
          (match (math-preview--extract-match
-                 (buffer-substring beg end))))
-    (math-preview--submit (car region)
-                          (cdr region)
-                          (if (string-equal (-third-item match) "MathML")
-                              (if (and (listp math-preview-preprocess-mathml-functions)
-                                       (> (length math-preview-preprocess-mathml-functions) 0))
+                 (buffer-substring beg end)))
+         (functions-shared math-preview-preprocess-functions)
+         functions-specific)
+    (math-preview--submit beg
+                          end
+                          (cond
+                           (((string= (gethash "type" match) "tex"))
+                            (setq functions-specific math-preview-tex-preprocess-functions))
+                           (((string= (gethash "type" match) "mathml"))
+                            (setq functions-specific math-preview-mathml-preprocess-functions))
+                           (((string= (gethash "type" match) "asciimath"))
+                            (setq functions-specific math-preview-asciimath-preprocess-functions)))
+                          (if (and (listp math-preview-preprocess-mathml-functions)
+                                   (> (length math-preview-preprocess-mathml-functions) 0))
                                   (car (funcall (apply #'-compose
                                                        (reverse math-preview-preprocess-mathml-functions))
                                                 (list (-first-item match) (-fourth-item match) (-fifth-item match))))
@@ -445,10 +859,11 @@ type of equation, left and right marks."
                                                      (reverse math-preview-preprocess-tex-functions))
                                               (list (-second-item match) (-fourth-item match) (-fifth-item match))))
                               (-second-item match)))
-                          (-third-item match))))
+                          (gethash "type" match)
+                          (gethash "inline" match))))
 
 (defun math-preview--region (beg end)
-  "Preview equations in region between `BEG` and `END`."
+  "Preview equations in region between `BEG' and `END'."
   (->> (math-preview--find-gaps beg end)
        (--map (math-preview--search (car it) (cdr it)))
        (-flatten)
@@ -456,7 +871,7 @@ type of equation, left and right marks."
 
 ;;;###autoload
 (defun math-preview-region (beg end)
-  "Preview equations in region between `BEG` and `END`."
+  "Preview equations in region between `BEG' and `END'."
   (interactive "r")
   (deactivate-mark)
   (math-preview--region beg end))
@@ -481,12 +896,12 @@ type of equation, left and right marks."
      (-map #'math-preview--submit-region)))
 
 (defun math-preview--clear-region (beg end)
-  "Remove all preview overlays in region between `BEG` and `END`."
+  "Remove all preview overlays in region between `BEG' and `END'."
   (--map (delete-overlay it) (math-preview--overlays beg end)))
 
 ;;;###autoload
 (defun math-preview-clear-region (beg end)
-  "Remove all preview overlays in region between `BEG` and `END`."
+  "Remove all preview overlays in region between `BEG' and `END'."
   (interactive "r")
   (deactivate-mark)
   (math-preview--clear-region beg end))
@@ -505,7 +920,7 @@ type of equation, left and right marks."
 
 (defun math-preview--set-scale (n)
   "Adjust image size.
-Scale is changed by `N` times `math-preview-scale-increment`"
+Scale is changed by `N' times `math-preview-scale-increment'"
   (let ((o (-first-item (math-preview--overlays (point) (point)))))
     (when o
       (let* ((display (overlay-get o 'display))
@@ -520,14 +935,14 @@ Scale is changed by `N` times `math-preview-scale-increment`"
 ;;;###autoload
 (defun math-preview-increment-scale (n)
   "Increment image size.
-Scale is changed by `N` times `math-preview-scale-increment`"
+Scale is changed by `N' times `math-preview-scale-increment'"
   (interactive "p")
   (math-preview--set-scale (if (or (null n) (<= n 0)) 1 n)))
 
 ;;;###autoload
 (defun math-preview-decrement-scale (n)
   "Decrement image size.
-Scale is changed by `N` times `math-preview-scale-increment`"
+Scale is changed by `N' times `math-preview-scale-increment'"
   (interactive "p")
   (math-preview--set-scale (if (or (null n) (<= n 0)) -1 (* n -1))))
 
