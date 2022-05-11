@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node -r esm
+#!/usr/bin/env node
 
 // This file is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,6 +13,8 @@
 // For a full copy of the GNU General Public License
 // see <http://www.gnu.org/licenses/>.
 
+// https://blog.logrocket.com/how-to-use-ecmascript-modules-with-node-js/
+require = require("esm")(module);
 const jsonschema = require("jsonschema");
 const mathjax_full = require("mathjax-full");
 const readline = require("readline");
@@ -182,20 +184,20 @@ process.argv.slice(2).forEach(
                                 .filter(x => x != undefined));
                         Object.keys(arg_parsed["tex/packages"]).filter((x) => x != "tex/packages/list").
                             forEach(
-                                (package) => {
-                                    Object.assign(TEX_PACKAGES_CONFIG[package],
-                                                  arg_parsed["tex/packages"][package]);
+                                (pkg) => {
+                                    Object.assign(TEX_PACKAGES_CONFIG[pkg],
+                                                  arg_parsed["tex/packages"][pkg]);
                                 }
                             );
                         console.error(`preloaded packages list: ${CONFIG["tex"]["packages"]}`);
                         CONFIG["tex"]["packages"].forEach(
-                            (package) => {
+                            (pkg) => {
                                 // assign package options only if it is preloaded
-                                if (TEX_PACKAGES_CONFIG[package] != undefined) {
-                                    if (CONFIG["tex"][package] == undefined) {
-                                        CONFIG["tex"][package] = {};
+                                if (TEX_PACKAGES_CONFIG[pkg] != undefined) {
+                                    if (CONFIG["tex"][pkg] == undefined) {
+                                        CONFIG["tex"][pkg] = {};
                                     }
-                                    Object.assign(CONFIG["tex"][package], TEX_PACKAGES_CONFIG[package]);
+                                    Object.assign(CONFIG["tex"][pkg], TEX_PACKAGES_CONFIG[pkg]);
                                 }
                             }
                         );

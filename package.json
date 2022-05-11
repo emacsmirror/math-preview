@@ -1,18 +1,26 @@
 {
   "name": "math-preview",
-  "version": "0.0.2",
+  "version": "4.0.0",
+  "type": "commonjs",
   "description": "Convert math to image",
-  "bin": "./math-preview.js",
+  "main": "math-preview.js",
+  "bin": {
+    "math-preview": "math-preview.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/matsievskiysv/math-preview"
+    "url": "git+https://gitlab.com/matsievskiysv/math-preview.git"
   },
   "keywords": [
     "mathjax",
-    "math"
+    "math",
+    "emacs",
+    "tex",
+    "mathml",
+    "asciimath"
   ],
   "author": "Matsievskiy S.V.",
   "license": "GPL-3.0-or-later",
@@ -21,5 +29,9 @@
     "jsonschema": "^1.4.0",
     "mathjax-full": "^3.2.0",
     "readline": "^1.3.0"
-  }
+  },
+  "bugs": {
+    "url": "https://gitlab.com/matsievskiysv/math-preview/issues"
+  },
+  "homepage": "https://gitlab.com/matsievskiysv/math-preview#readme"
 }

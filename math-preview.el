@@ -82,7 +82,7 @@
   :safe (lambda (n) (and (integerp n)
                     (> n 0))))
 
-(defcustom math-preview-scale 2
+(defcustom math-preview-scale 1
   "Adjust image scale."
   :tag "Image scale"
   :type 'number
@@ -680,10 +680,9 @@ Call `math-preview--process-input' for strings with carriage return."
            target-overlay)
       (unless (= id -1)
         (setq target-overlay (cdr (--first (= (car it) id) math-preview--queue)))
-        (setq math-preview--queue
-              (--remove (= (car it) id) math-preview--queue)))
+        (setq math-preview--queue (--remove (= (car it) id) math-preview--queue)))
       (cond
-       ((string= "error" type)) (message "%s" payload) (when target-overlay (delete-overlay target-overlay))
+       ((string= "error" type) (message "%s" payload) (when target-overlay (delete-overlay target-overlay)))
        ((string= "svg" type)
         (overlay-put target-overlay 'category 'math-preview)
         (overlay-put target-overlay 'display
