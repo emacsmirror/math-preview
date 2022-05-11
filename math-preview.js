@@ -38,10 +38,10 @@ const SCHEMA = {
         "em": { "type": "number" },
         "ex": { "type": "number" },
         "scale": { "type": "number" },
+        "inline": { "type": "bool" },
         "containerWidth": { "type": "number" },
         "lineWidth": { "type": "number" },
         "payload": { "type": "string" },
-        "inline": { "type": "bool" },
         "from": {
             "type": "string",
             "enum": ["tex", "mathml", "asciimath"]

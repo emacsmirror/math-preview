@@ -52,7 +52,7 @@
   '((t :inherit highlight))
   "Face for equation processing.")
 
-(defcustom math-preview-command "/media/mstorage/Projects/Emacs/math-preview/math-preview.js"
+(defcustom math-preview-command "math-preview"
   "TeX conversion program name."
   :tag "Command name"
   :type 'string)
@@ -673,28 +673,28 @@ Call `math-preview--process-input' for strings with carriage return."
       (insert message)
       (insert "\n")))
   (ignore-errors
-      (let* ((msg (json-read-from-string message))
-             (id (cdr (assoc 'id msg)))
-             (type (cdr (assoc 'type msg)))
-             (payload (cdr (assoc 'payload msg)))
-             target-overlay)
-        (unless (= id -1)
-          (setq target-overlay (cdr (--first (= (car it) id) math-preview--queue)))
-          (setq math-preview--queue
-                (--remove (= (car it) id) math-preview--queue)))
-        (cond
-         ((string= "error")) (message "%s" payload) (when target-overlay (delete-overlay target-overlay)))
-        ((string= "svg")
-         (overlay-put target-overlay 'category 'math-preview)
-         (overlay-put target-overlay 'display
-                      (list (list 'raise math-preview-raise)
-                            (cons 'image
-                                  (list :type 'svg
-                                        :data data
-                                        :scale math-preview-scale
-                                        :pointer 'hand
-                                        :margin math-preview-margin
-                                        :relief math-preview-relief))))))))
+    (let* ((msg (json-read-from-string message))
+           (id (cdr (assoc 'id msg)))
+           (type (cdr (assoc 'type msg)))
+           (payload (cdr (assoc 'payload msg)))
+           target-overlay)
+      (unless (= id -1)
+        (setq target-overlay (cdr (--first (= (car it) id) math-preview--queue)))
+        (setq math-preview--queue
+              (--remove (= (car it) id) math-preview--queue)))
+      (cond
+       ((string= "error" type)) (message "%s" payload) (when target-overlay (delete-overlay target-overlay))
+       ((string= "svg" type)
+        (overlay-put target-overlay 'category 'math-preview)
+        (overlay-put target-overlay 'display
+                     (list (list 'raise math-preview-raise)
+                           (cons 'image
+                                 (list :type 'svg
+                                       :data payload
+                                       :scale math-preview-scale
+                                       :pointer 'hand
+                                       :margin math-preview-margin
+                                       :relief math-preview-relief)))))))))
 
 (defun math-preview--submit (beg end string type inline)
   "Submit equation processing job.
@@ -704,33 +704,34 @@ Call `math-preview--process-input' for strings with carriage return."
 `INLINE' is a display style flag."
   (unless (math-preview--overlays beg end)
     (let ((proc (math-preview-start-process))
-          (o (make-overlay beg end))
-          (id (1+ (or (-> math-preview--queue
-                          (-first-item)
-                          (car))
-                      0))))
-      (overlay-put o 'category 'math-preview-processing)
-      (setq math-preview--queue (-insert-at 0 (-cons* id o)
-                                            math-preview--queue))
-      (when (and (listp math-preview-preprocess-functions)
-                 (> (length math-preview-preprocess-functions) 0))
-        (setq string (funcall
-                      (apply #'-compose
-                             (reverse math-preview-preprocess-functions))
-                      string)))
-      (let ((msg (concat (json-encode (list :version math-preview--schema-version
-                                            :id id
-                                            :ex math-preview-mathjax-ex
-                                            :cjk math-preview-mathjax-cjk-width
-                                            :width math-preview-mathjax-max-width
-                                            :data string
-                                            :type type))
-                         "\n")))
-        (when math-preview--debug-json
-          (with-current-buffer (get-buffer-create "*math-preview*")
-            (insert "Outgoing:")
-            (insert msg)))
-        (process-send-string proc msg)))))
+          (target-overlay (make-overlay beg end))
+          (id (1+ (or (-> math-preview--queue (-first-item) (car)) 0)))
+          msg)
+      (overlay-put target-overlay 'category 'math-preview-processing)
+      (setq math-preview--queue (-insert-at 0 (-cons* id target-overlay) math-preview--queue))
+      (setq msg (concat
+                 (json-encode
+                  (list :version math-preview--schema-version
+                        :id id
+                        :em math-preview-mathjax-em
+                        :ex math-preview-mathjax-ex
+                        :scale math-preview-mathjax-scale
+                        :inline (math-preview--json-bool inline)
+                        :containerWidth (if (functionp math-preview-mathjax-container-width)
+                                            (funcall math-preview-mathjax-container-width)
+                                          math-preview-mathjax-container-width)
+                        :lineWidth (if (functionp math-preview-mathjax-line-width)
+                                       (funcall math-preview-mathjax-line-width)
+                                     math-preview-mathjax-line-width)
+                        :payload string
+                        :from type
+                        :to "svg"))
+                 "\n"))
+      (when math-preview--debug-json
+        (with-current-buffer (get-buffer-create "*math-preview*")
+          (insert "Outgoing:")
+          (insert msg)))
+      (process-send-string proc msg))))
 ;; }}}
 
 ;; {{{ Search
@@ -820,13 +821,15 @@ type of equation, left and right marks."
          (marks (cdr match))
          (lmark (car marks))
          (rmark (cdr marks))
-         (stripped (s-chop-suffix rmark (s-chop-prefix lmark string))))
-    #s(hash-table size 6 test equal data ("string" string
-                                          "stripped" stripped
-                                          "type" (car (car match))
-                                          "inline" (cdr (car match))
-                                          "lmark" lmark
-                                          "rmark" rmark)))
+         (stripped (s-chop-suffix rmark (s-chop-prefix lmark string)))
+         (table (make-hash-table :size 6)))
+    (puthash 'match string table)
+    (puthash 'string stripped table)
+    (puthash 'type (car (car match)) table)
+    (puthash 'inline (cdr (car match)) table)
+    (puthash 'lmark lmark table)
+    (puthash 'rmark rmark table)
+    table))
 ;; }}}
 
 ;; {{{ User interface
@@ -836,31 +839,14 @@ type of equation, left and right marks."
          (end (cdr region))
          (match (math-preview--extract-match
                  (buffer-substring beg end)))
+         (type (gethash 'type match))
          (functions-shared math-preview-preprocess-functions)
-         functions-specific)
-    (math-preview--submit beg
-                          end
-                          (cond
-                           (((string= (gethash "type" match) "tex"))
-                            (setq functions-specific math-preview-tex-preprocess-functions))
-                           (((string= (gethash "type" match) "mathml"))
-                            (setq functions-specific math-preview-mathml-preprocess-functions))
-                           (((string= (gethash "type" match) "asciimath"))
-                            (setq functions-specific math-preview-asciimath-preprocess-functions)))
-                          (if (and (listp math-preview-preprocess-mathml-functions)
-                                   (> (length math-preview-preprocess-mathml-functions) 0))
-                                  (car (funcall (apply #'-compose
-                                                       (reverse math-preview-preprocess-mathml-functions))
-                                                (list (-first-item match) (-fourth-item match) (-fifth-item match))))
-                                (-first-item match))
-                            (if (and (listp math-preview-preprocess-tex-functions)
-                                     (> (length math-preview-preprocess-tex-functions) 0))
-                                (car (funcall (apply #'-compose
-                                                     (reverse math-preview-preprocess-tex-functions))
-                                              (list (-second-item match) (-fourth-item match) (-fifth-item match))))
-                              (-second-item match)))
-                          (gethash "type" match)
-                          (gethash "inline" match))))
+         (functions-specific (cond ((string= type "tex") math-preview-tex-preprocess-functions)
+                                   ((string= type "mathml") math-preview-mathml-preprocess-functions)
+                                   ((string= type "asciimath") math-preview-asciimath-preprocess-functions))))
+    (run-hook-with-args 'functions-specific match)
+    (run-hook-with-args 'functions-shared match)
+    (math-preview--submit beg end (gethash 'string match) (gethash 'type match) (gethash 'inline match))))
 
 (defun math-preview--region (beg end)
   "Preview equations in region between `BEG' and `END'."
