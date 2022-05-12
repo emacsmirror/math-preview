@@ -75,6 +75,7 @@ var CONFIG = {
         digits: `/^(?:[0-9]+(?:\{,\}[0-9]*)?|\{,\}[0-9]+)/`,
         tags: "none",
         tagSide: "right",
+        tagIndent: "0.8em",
         useLabelIds: true,
         maxBuffer: 50 * 1024, // 10 times the reasonable amount
         // http://docs.mathjax.org/en/latest/input/tex/extensions/configmacros.html
@@ -93,7 +94,7 @@ var CONFIG = {
         mathmlSpacing: false,
         skipAttributes: {},
         exFactor: .5,
-        displayAlign: "center",
+        displayAlign: "left",
         displayIndent: "0",
         fontCache: "none",
         localID: null,

@@ -86,6 +86,50 @@ Another practical example of equation preprocessing is a standard MathML hook
 ```
 which replaces stripped equation `string` with the unstripped version `match` in order to preserve `<math></math>` tags.
 
+## SVG postprocessing
+
+Similarly, SVG string may be edited before rendering. `math-preview-svg-postprocess-functions` abnormal hook functions take one argument that is a hash table with single field `string`. You may modify `string` field in place to influence image rendering.
+
+## Configuration
+
+Configuration of the package is done using [`customize`](https://www.gnu.org/software/emacs/manual/html_node/emacs/Easy-Customization.html) framework. To open customization menu type <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview</kbd>.
+
+Note, that most of the configuration options are passed to companion java-script program at startup, so in order to apply new configurations you need to stop currently running program via `math-preview-stop-process` command.
+
+### Debug configuration
+Sometimes it's necessary to debug configuration. In order to enable debug buffer, issue the command <kbd>M-:</kbd>+<kbd>(setq math-preview--debug-json t)</kbd>. This will create a `*math-preview*` buffer, where JSON communication between programs will be echoed. Additionally, at startup of java-script program full MathJax configuration will appear in this buffer.
+
+### Set equation marks
+Package has 6 variables for equation marks configuration: for TeX, MathML and AsciiMath, each having inline and display versions. Currently only TeX equations distinguish between inline and display modes.
+
+Configuration menus:
+* TeX: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex</kbd>
+* MathML: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-mathml</kbd>
+* AsciiMath: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-asciimath</kbd>
+
+### Set preprocess and postprocess functions
+These abnormal hooks are described in detail above.
+
+Configuration menus:
+* Common: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview</kbd>
+* SVG: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview</kbd>
+* TeX: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex</kbd>
+* MathML: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-mathml</kbd>
+* AsciiMath: <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-asciimath</kbd>
+
+### Predefine TeX macros and environments
+This package allows adding custom macros and environments globally. This is done in configuration menu <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex</kbd>. Following are predefined examples of macro and environment:
+$$\ddx[y]{x}$$
+$$\begin{braced}A\end{braced}$$
+
+### Preload packages
+MathJax allows preload frequently used packages. This is done by adding package to the list in menu <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex-packages</kbd>. Under that menu there are sub-menus with configuration options for some of the packages.
+
+Note that some packages require loader to be added. This is done by adding loader to the list in menu <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-mathjax-loader</kbd>.
+
+### Autoload packages
+It is possible to automatically load packages when certain macros are invoked. For this you should add `autoload` package to default packages list in <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex-packages</kbd> (added by default) and then assign macro and environment names to packages in <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex-packages-autoload</kbd>.
+
 ## MathJax examples
 
 All equations are displayed inline: $\sqrt[3]{\frac xy}$ $$\frac{n!}{k!(n-k)!} = \binom{n}{k}$$ \(\sqrt[n]{1+x+x^2+x^3+\dots+x^n}\) \[\int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x\]

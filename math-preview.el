@@ -89,6 +89,21 @@
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
 
+(defcustom math-preview-svg-postprocess-functions
+  '((lambda (x) (puthash 'string (s-replace "width=\"100%\""
+                                       (format "width=\"%dem\""
+                                               (/ (window-max-chars-per-line) 2))
+                                       (gethash 'string x))
+                    x)))
+  "Functions to call on resulting SVG string before rendering.
+Functions are applied in chain from left to right (or from top to bottom, when
+in `customize').  Each function accepts one arguments which is a hash table
+with field `string'.  User may modify `string' in place to edit resulting image."
+  :tag "Postprocess SVG functions"
+  :type '(repeat function)
+  :safe (lambda (n) (and (listp n)
+                    (-all? #'functionp n))))
+
 (defcustom math-preview-scale-increment 0.1
   "Image scale interactive increment value."
   :tag "Image scale increment"
@@ -139,8 +154,8 @@ These functions are evaluated after `math-preview-tex-preprocess-functions',
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-tex-preprocess-functions
-  '((lambda (x) (when (and (s-prefix? "\\begin" "\\begin{equation}")
-                      (s-prefix? "\\end" "\\end{equation}"))
+  '((lambda (x) (when (and (s-prefix? "\\begin" (gethash 'lmark x))
+                      (s-prefix? "\\end" (gethash 'rmark x)))
              (puthash 'string (gethash 'match x) x))))
   "Functions to call on each TeX string.
 Functions are applied in chain from left to right (or from top to bottom, when
@@ -455,21 +470,25 @@ functions."
   :group  'math-preview
   :prefix "math-preview-mathjax-")
 
-(defcustom math-preview-mathjax-em 16
+(defcustom math-preview-mathjax-em #'window-font-width
   "Number giving the number of pixels in an `em' for the surrounding font."
   :tag "Em size"
-  :type 'integer
-  :safe (lambda (n) (and (numberp n)
-                    (> n 0))))
+  :type '(choice (integer :tag "Constant value")
+                 (function :tag "Calculate using function"))
+  :safe (lambda (n) (or (functionp n)
+                   (and (numberp n)
+                        (> n 0)))))
 
-(defcustom math-preview-mathjax-ex 8
+(defcustom math-preview-mathjax-ex #'window-font-height
   "Number giving the number of pixels in an `ex' for the surrounding font."
   :tag "Ex size"
-  :type 'integer
-  :safe (lambda (n) (and (numberp n)
-                    (> n 0))))
+  :type '(choice (integer :tag "Constant value")
+                 (function :tag "Calculate using function"))
+  :safe (lambda (n) (or (functionp n)
+                   (and (numberp n)
+                        (> n 0)))))
 
-(defcustom math-preview-mathjax-container-width #'frame-pixel-width
+(defcustom math-preview-mathjax-container-width #'window-pixel-width
   "Number giving the width of the container, in pixels."
   :tag "Container width"
   :type '(choice (integer :tag "Constant value")
@@ -545,6 +564,14 @@ Set it to `left' to place the tags on the left-hand side."
                  (const :tag "Right" "right"))
   :safe 'stringp)
 
+(defcustom math-preview-mathjax-tag-indent "0.8em"
+  "Tag indent.
+This is the amount of indentation (from the right or left) for the tags
+produced by the `\\tag{}' macro."
+  :tag "Tag indent"
+  :type 'string
+  :safe 'stringp)
+
 (defgroup math-preview-mathjax-svg nil
   "MathJax SVG configuration options.
 The options below control the operation of the SVG output processor that
@@ -581,7 +608,7 @@ True for `MathML' spacing rules, false for `TeX' rules."
   :safe (lambda (n) (and (numberp n)
                     (> n 0))))
 
-(defcustom math-preview-mathjax-svg-display-align "center"
+(defcustom math-preview-mathjax-svg-display-align "left"
   "Default for `indentalign' when set to `auto'."
   :tag "Display align"
   :type '(choice (const :tag "Left" "left")
@@ -640,6 +667,10 @@ JSON encoder cannot distinguish `null' and `false', therefore we need to
 use `json-false' to encode `false'."
   (if arg arg json-false))
 
+(defun math-preview--number-or-function (f)
+  "Get number from field `F' which can be number of a function."
+  (if (functionp f) (funcall f) f))
+
 (defun math-preview--encode-arguments ()
   "Encode program arguments in JSON strings."
   (let* ((loader (list (cons "loader" (list (cons "load" math-preview-mathjax-loader-load)))))
@@ -653,7 +684,8 @@ use `json-false' to encode `false'."
          (tex (list (cons "tex" (list
                                  (cons"processEscapes" (math-preview--json-bool math-preview-mathjax-svg-mathml-spacing))
                                  (cons "digits" math-preview-mathjax-tex-digits)
-                                 (cons "tagSide" math-preview-mathjax-tags-side)))))
+                                 (cons "tagSide" math-preview-mathjax-tags-side)
+                                 (cons "tagIndent" math-preview-mathjax-tag-indent)))))
          (tex-macros (list (cons "tex/macros" math-preview-tex-macros)))
          (tex-environments (list (cons "tex/environments" math-preview-tex-environments)))
          (ams (list (cons "multlineWidth" math-preview-tex-packages-ams-multline-width)
@@ -730,6 +762,7 @@ Call `math-preview--process-input' for strings with carriage return."
   "Process input MESSAGE line."
   (when math-preview--debug-json
     (with-current-buffer (get-buffer-create "*math-preview*")
+      (goto-char (point-max))
       (insert "Incoming:")
       (insert message)
       (insert "\n")))
@@ -745,16 +778,19 @@ Call `math-preview--process-input' for strings with carriage return."
       (cond
        ((string= "error" type) (message "%s" payload) (when target-overlay (delete-overlay target-overlay)))
        ((string= "svg" type)
-        (overlay-put target-overlay 'category 'math-preview)
-        (overlay-put target-overlay 'display
-                     (list (list 'raise math-preview-raise)
-                           (cons 'image
-                                 (list :type 'svg
-                                       :data payload
-                                       :scale math-preview-scale
-                                       :pointer 'hand
-                                       :margin math-preview-margin
-                                       :relief math-preview-relief)))))))))
+        (let ((table (make-hash-table :size 1)))
+          (puthash 'string payload table)
+          (run-hook-with-args 'math-preview-svg-postprocess-functions table)
+          (overlay-put target-overlay 'category 'math-preview)
+          (overlay-put target-overlay 'display
+                       (list (list 'raise math-preview-raise)
+                             (cons 'image
+                                   (list :type 'svg
+                                         :data (gethash 'string table)
+                                         :scale math-preview-scale
+                                         :pointer 'hand
+                                         :margin math-preview-margin
+                                         :relief math-preview-relief))))))))))
 
 (defun math-preview--submit (beg end string type inline)
   "Submit equation processing job.
@@ -773,22 +809,19 @@ Call `math-preview--process-input' for strings with carriage return."
                  (json-encode
                   (list :version math-preview--schema-version
                         :id id
-                        :em math-preview-mathjax-em
-                        :ex math-preview-mathjax-ex
+                        :em (math-preview--number-or-function math-preview-mathjax-em)
+                        :ex (math-preview--number-or-function math-preview-mathjax-ex)
                         :scale math-preview-mathjax-scale
                         :inline (math-preview--json-bool inline)
-                        :containerWidth (if (functionp math-preview-mathjax-container-width)
-                                            (funcall math-preview-mathjax-container-width)
-                                          math-preview-mathjax-container-width)
-                        :lineWidth (if (functionp math-preview-mathjax-line-width)
-                                       (funcall math-preview-mathjax-line-width)
-                                     math-preview-mathjax-line-width)
+                        :containerWidth (math-preview--number-or-function math-preview-mathjax-container-width)
+                        :lineWidth (math-preview--number-or-function math-preview-mathjax-line-width)
                         :payload string
                         :from type
                         :to "svg"))
                  "\n"))
       (when math-preview--debug-json
         (with-current-buffer (get-buffer-create "*math-preview*")
+          (goto-char (point-max))
           (insert "Outgoing:")
           (insert msg)))
       (process-send-string proc msg))))
