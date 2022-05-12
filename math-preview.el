@@ -98,12 +98,17 @@
 
 (defcustom math-preview-preprocess-functions (list)
   "Functions to call on each matched string.
-Functions are applied in chain from left to right.
-Each function must take list argument in
-format (original-string left-mark right-mark) and return list in
-format (processed-string left-mark right-mark).
-These functions are evaluated after `math-preview-preprocess-tex-functions'
-and `math-preview-preprocess-mathml-functions' functions."
+Functions are applied in chain from left to right (or from top to bottom, when
+in `customize').  Each function accepts one arguments which is a hash table
+with fields: `match' matched string including marks; `string' matched string
+without marks; `type' equation type (`tex', `mathml' or `asciimath');
+`inline' equation inline flag; `lmark' and `rmark' are left and right marks
+respectively.  User may modify `string', `inline' and `type' fields in place to
+influence further equation processing (although the intended purpose of these
+functions is to edit only `string' field).
+These functions are evaluated after `math-preview-tex-preprocess-functions',
+`math-preview-mathml-preprocess-functions' and
+`math-preview-asciimath-preprocess-functions' functions."
   :tag "Preprocess functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
@@ -126,19 +131,28 @@ and `math-preview-preprocess-mathml-functions' functions."
 
 (defcustom math-preview-tex-marks-inline
   '(("\\(" "\\)")
-    ("$" "$"))
+    ("$" "$")
+    ("`$" "`$"))
   "Strings marking beginning and end of TeX inline equation."
   :tag "TeX equation inline marks"
   :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
   :safe #'math-preview--check-marks)
 
-(defcustom math-preview-tex-preprocess-functions (list)
+(defcustom math-preview-tex-preprocess-functions
+  '((lambda (x) (when (and (s-prefix? "\\begin" "\\begin{equation}")
+                      (s-prefix? "\\end" "\\end{equation}"))
+             (puthash 'string (gethash 'match x) x))))
   "Functions to call on each TeX string.
-Functions are applied in chain from left to right.
-Each function must take list argument in
-format (original-string left-mark right-mark) and return list in
-format (processed-string left-mark right-mark).
-These functions are evaluated before `math-preview-preprocess-functions' functions."
+Functions are applied in chain from left to right (or from top to bottom, when
+in `customize').  Each function accepts one arguments which is a hash table
+with fields: `match' matched string including marks; `string' matched string
+without marks; `type' equation type (`tex', `mathml' or `asciimath');
+`inline' equation inline flag; `lmark' and `rmark' are left and right marks
+respectively.  User may modify `string', `inline' and `type' fields in place to
+influence further equation processing (although the intended purpose of these
+functions is to edit only `string' field).
+These functions are evaluated before `math-preview-preprocess-functions'
+functions."
   :tag "Preprocess TeX functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
@@ -146,12 +160,14 @@ These functions are evaluated before `math-preview-preprocess-functions' functio
 
 (defcustom math-preview-tex-macros
   `(("ddx" . ("\\frac{d#2}{d#1}" 2 "t")))
-  "List of predefined macros. `\\' in the name of the macro must be omitted.
-If macro does not have any arguments, then macro definition is a string.
-If macro have arguments, then macro definition is a list, where first item is a definition string, second item is
-a number of macro arguments and third argument is the optional default value for the first argument.
-More information at the page http://docs.mathjax.org/en/latest/input/tex/macros.html#tex-macros and
-http://docs.mathjax.org/en/latest/input/tex/extensions/configmacros.html#configmacros-options."
+  "List of predefined macros.
+`\\' in the name of the macro must be omitted.  If macro does not have any
+arguments, then macro definition is a string.  If macro have arguments, then
+macro definition is a list, where first item is a definition string, second
+item is a number of macro arguments and third argument is the optional default
+value for the first argument.  More information at the page
+http://docs.mathjax.org/en/latest/input/tex/macros.html#tex-macros and
+http://docs.mathjax.org/en/latest/input/tex/extensions/configmacros.html."
   :tag "Macro list"
   :type '(alist :key-type (string :tag "Name")
                 :value-type (choice :tag "Definition"
@@ -175,13 +191,16 @@ http://docs.mathjax.org/en/latest/input/tex/extensions/configmacros.html#configm
 
 (defcustom math-preview-tex-environments
   `(("braced" . ("\\left\\{" "\\right\\}")))
-  "List of predefined environments. `\\' in the name of the macro must be omitted.
-If environment does not have any arguments, then environment definition is a pair of strings.
-If environment have arguments, then environment definition is a list, where first two items are pair of
-definition strings, third item is a number of environment arguments and fourth argument is the optional
-default value for the first argument.
-More information at the page http://docs.mathjax.org/en/latest/input/tex/environments.html#tex-environments and
-http://docs.mathjax.org/en/latest/input/tex/extensions/configenvironments.html#configenvironments-options."
+  "List of predefined environments.
+`\\' in the name of the macro must be omitted.  If environment does not have
+any arguments, then environment definition is a pair of strings.  If environment
+have arguments, then environment definition is a list, where first two items
+are pair of definition strings, third item is a number of environment
+arguments and fourth argument is the optional default value for the first
+argument.  More information at the page
+http://docs.mathjax.org/en/latest/input/tex/environments.html#tex-environments
+and
+http://docs.mathjax.org/en/latest/input/tex/extensions/configenvironments.html."
   :tag "Environment list"
   :type '(alist :key-type (string :tag "Name")
                 :value-type (choice :tag "Definition"
@@ -206,9 +225,12 @@ http://docs.mathjax.org/en/latest/input/tex/extensions/configenvironments.html#c
   :prefix "math-preview-tex-package-")
 
 (defcustom math-preview-tex-default-packages '("autoload")
-  "This array lists the names of the packages (extensions) that should be initialized by the TeX input processor.
-Packages not in this list must be loaded using `\\require{}' macro or via `autoload' mechanism.
-Extension list is available here http://docs.mathjax.org/en/latest/input/tex/extensions/index.html.
+  "List of default `TeX' packages to load.
+This array lists the names of the packages (extensions) that should be
+initialized by the `TeX' input processor.  Packages not in this list must
+be loaded using `\\require{}' macro or via `autoload' mechanism.
+Extension list is available at the page
+http://docs.mathjax.org/en/latest/input/tex/extensions/index.html.
 `base', `require', `newcommand' and `configmacros' are always loaded."
   :tag "Default TeX packages"
   :type '(repeat string)
@@ -216,7 +238,7 @@ Extension list is available here http://docs.mathjax.org/en/latest/input/tex/ext
 
 (defgroup math-preview-tex-packages-ams nil
   "TeX ams package options.
-http://docs.mathjax.org/en/latest/input/tex/extensions/ams.html#tex-ams-options"
+http://docs.mathjax.org/en/latest/input/tex/extensions/ams.html"
   :group  'math-preview-tex-packages
   :prefix "math-preview-tex-package-ams-")
 
@@ -234,37 +256,47 @@ http://docs.mathjax.org/en/latest/input/tex/extensions/ams.html#tex-ams-options"
 
 (defgroup math-preview-tex-packages-amscd nil
   "TeX amscd package options.
-http://docs.mathjax.org/en/latest/input/tex/extensions/amscd.html#tex-amscd-options"
+http://docs.mathjax.org/en/latest/input/tex/extensions/amscd.html"
   :group  'math-preview-tex-packages
   :prefix "math-preview-tex-package-amscd-")
 
 (defcustom math-preview-tex-packages-amsdc-colspace "5pt"
-  "This gives the amount of space to use between columns in the commutative diagram."
+  "Column space.
+This gives the amount of space to use between columns in the commutative
+diagram."
   :tag "Column space"
   :type 'string
   :safe #'stringp)
 
 (defcustom math-preview-tex-packages-amsdc-rowspace "5pt"
-  "This gives the amount of space to use between rows in the commutative diagram."
+  "Row space.
+This gives the amount of space to use between rows in the commutative
+diagram."
   :tag "Row space"
   :type 'string
   :safe #'stringp)
 
 (defcustom math-preview-tex-packages-amsdc-harrowsize "2.75em"
-  "This gives the minimum size for horizontal arrows in the commutative diagram."
+  "Horizontal arrow size.
+This gives the minimum size for horizontal arrows in the commutative
+diagram."
   :tag "Horizontal arrow size"
   :type 'string
   :safe #'stringp)
 
 (defcustom math-preview-tex-packages-amsdc-varrowsize "2.75em"
-  "This gives the minimum size for vertical arrows in the commutative diagram."
+  "Vertical arrow size.
+This gives the minimum size for vertical arrows in the commutative
+diagram."
   :tag "Vertical arrow size"
   :type 'string
   :safe #'stringp)
 
 (defcustom math-preview-tex-packages-amsdc-hide-horizontal-labels nil
-  "This determines whether horizontal arrows with labels above or below will use `\\smash' in order to hide the
-height of the labels. (Labels above or below horizontal arrows can cause excess space between rows,
+  "Hide horizontal labels.
+This determines whether horizontal arrows with labels above or below
+will use `\\smash' in order to hide the height of the labels.
+\(Labels above or below horizontal arrows can cause excess space between rows,
 so setting this to true can improve the look of the diagram.)"
   :tag "Hide horizontal labels"
   :type 'boolean
@@ -272,7 +304,7 @@ so setting this to true can improve the look of the diagram.)"
 
 (defgroup math-preview-tex-packages-autoload nil
   "TeX autoload package options.
-http://docs.mathjax.org/en/latest/input/tex/extensions/autoload.html#tex-autoload-options"
+http://docs.mathjax.org/en/latest/input/tex/extensions/autoload.html"
   :group  'math-preview-tex-packages
   :prefix "math-preview-tex-package-autoload-")
 
@@ -298,10 +330,13 @@ http://docs.mathjax.org/en/latest/input/tex/extensions/autoload.html#tex-autoloa
                 "Upupsilon" "upvarepsilon" "upvarphi" "upvarpi" "upvarrho"
                 "upvarsigma" "upvartheta" "upxi" "Upxi" "upzeta"))
     ("verb" . ("verb")))
-  "Adding the autoload extension to the packages array defines an autoload sub-block to the tex configuration block.
-This block contains key: value pairs where the key is a `TeX' package name, and the value is an array of macros
-that cause that package to be loaded, or an array consisting of two arrays,
-the first giving names of macros and the second names of environments; the first time any of them are used,
+  "Auto-loading macros and environments.
+Adding the autoload extension to the packages array defines an
+auto-load sub-block to the `TeX' configuration block.  This block
+contains key: value pairs where the key is a `TeX' package name,
+and the value is an array of macros that cause that package to be loaded,
+or an array consisting of two arrays, the first giving names of macros and
+the second names of environments; the first time any of them are used,
 the extension will be loaded automatically."
   :tag "Packages"
   :type '(alist :tag "Package"
@@ -325,20 +360,23 @@ the extension will be loaded automatically."
 
 (defgroup math-preview-tex-packages-physics nil
   "TeX physics package options.
-http://docs.mathjax.org/en/latest/input/tex/extensions/physics.html#physics-options"
+http://docs.mathjax.org/en/latest/input/tex/extensions/physics.html"
   :group  'math-preview-tex-packages
   :prefix "math-preview-tex-package-physics-")
 
 (defcustom math-preview-tex-packages-physics-italicdiff nil
-  "This corresponds to the `italicdiff' option of the `physics' `LaTeX' package to use italic form for the `d' in
-the `\differential' and `\derivative' commands."
+  "Italic diff.
+This corresponds to the `italicdiff' option of the `physics'
+`LaTeX' package to use italic form for the `d' in the `\differential' and
+`\derivative' commands."
   :tag "Italic diff"
   :type 'boolean
   :safe t)
 
 (defcustom math-preview-tex-packages-physics-arrowdel nil
-  "This corresponds to the `arrowdel' option of the `physics' `LaTeX' package to use vector notation over the
-`nabla' symbol."
+  "Arrow del.
+This corresponds to the `arrowdel' option of the `physics'
+`LaTeX' package to use vector notation over the `nabla' symbol."
   :tag "Arrow del"
   :type 'boolean
   :safe t)
@@ -355,18 +393,24 @@ the `\differential' and `\derivative' commands."
   :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
   :safe #'math-preview--check-marks)
 
-(defcustom math-preview-mathml-marks-inline
-  '(("<mathinline" "</mathinline>"))
+(defcustom math-preview-mathml-marks-inline (list)
   "Strings marking beginning and end of MathML inline equation."
   :tag "MathML equation inline marks"
   :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
   :safe #'math-preview--check-marks)
 
-(defcustom math-preview-mathml-preprocess-functions (list)
+(defcustom math-preview-mathml-preprocess-functions '((lambda (x) (puthash 'string (gethash 'match x) x)))
   "Functions to call on each MathML string.
-Functions are applied in chain from left to right.
-Each function must take one string argument and return string.
-These functions are evaluated before `math-preview-preprocess-functions' functions."
+Functions are applied in chain from left to right (or from top to bottom, when
+in `customize').  Each function accepts one arguments which is a hash table
+with fields: `match' matched string including marks; `string' matched string
+without marks; `type' equation type (`tex', `mathml' or `asciimath');
+`inline' equation inline flag; `lmark' and `rmark' are left and right marks
+respectively.  User may modify `string', `inline' and `type' fields in place to
+influence further equation processing (although the intended purpose of these
+functions is to edit only `string' field).
+These functions are evaluated before `math-preview-preprocess-functions'
+functions."
   :tag "Preprocess MathML functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
@@ -377,15 +421,13 @@ These functions are evaluated before `math-preview-preprocess-functions' functio
   :group  'math-preview
   :prefix "math-preview-asciimath-")
 
-(defcustom math-preview-asciimath-marks
-  '(("```" "```"))
+(defcustom math-preview-asciimath-marks (list)
   "Strings marking beginning and end of AsciiMath equation."
   :tag "AsciiMath equation marks"
   :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
   :safe #'math-preview--check-marks)
 
-(defcustom math-preview-asciimath-marks-inline
-  '(("`" "`"))
+(defcustom math-preview-asciimath-marks-inline (list)
   "Strings marking beginning and end of AsciiMath inline equation."
   :tag "AsciiMath equation inline marks"
   :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
@@ -393,9 +435,16 @@ These functions are evaluated before `math-preview-preprocess-functions' functio
 
 (defcustom math-preview-asciimath-preprocess-functions (list)
   "Functions to call on each AsciiMath string.
-Functions are applied in chain from left to right.
-Each function must take one string argument and return string.
-These functions are evaluated before `math-preview-preprocess-functions' functions."
+Functions are applied in chain from left to right (or from top to bottom, when
+in `customize').  Each function accepts one arguments which is a hash table
+with fields: `match' matched string including marks; `string' matched string
+without marks; `type' equation type (`tex', `mathml' or `asciimath');
+`inline' equation inline flag; `lmark' and `rmark' are left and right marks
+respectively.  User may modify `string', `inline' and `type' fields in place to
+influence further equation processing (although the intended purpose of these
+functions is to edit only `string' field).
+These functions are evaluated before `math-preview-preprocess-functions'
+functions."
   :tag "Preprocess AsciiMath functions"
   :type '(repeat function)
   :safe (lambda (n) (and (listp n)
@@ -421,7 +470,7 @@ These functions are evaluated before `math-preview-preprocess-functions' functio
                     (> n 0))))
 
 (defcustom math-preview-mathjax-container-width #'frame-pixel-width
-  "number giving the width of the container, in pixels."
+  "Number giving the width of the container, in pixels."
   :tag "Container width"
   :type '(choice (integer :tag "Constant value")
                  (function :tag "Calculate using function"))
@@ -458,38 +507,48 @@ http://docs.mathjax.org/en/latest/options/startup/loader.html"
   :safe (lambda (l) (-all? 'stringp l)))
 
 (defgroup math-preview-mathjax-tex nil
-  "The options below control the operation of the TeX input processor that is run when you include `input/tex',
-`input/tex-full', or `input/tex-base' in the load array of the loader block of your MathJax configuration.
+  "MathJax `TeX' configuration options.
+The options below control the operation of the TeX input processor that
+is run when you include `input/tex', `input/tex-full', or `input/tex-base'
+in the load array of the loader block of your MathJax configuration.
 http://docs.mathjax.org/en/latest/options/input/tex.html"
   :group  'math-preview-mathjax
   :prefix "math-preview-mathjax-tex-")
 
 (defcustom math-preview-mathjax-tex-process-escapes t
-  "When set to true, you may use `\\$' to represent a literal dollar sign, rather than using it as a math delimiter,
-and `\\\\' to represent a literal backslash."
+  "Process escapes.
+When set to true, you may use `\\$' to represent a literal dollar sign,
+rather than using it as a math delimiter, and `\\\\' to represent a literal
+backslash."
   :tag "Process escapes"
   :type 'boolean
   :safe t)
 
 (defcustom math-preview-mathjax-tex-digits "/^(?:[0-9]+(?:\\{,\\}[0-9]*)?|\\{,\\}[0-9]+)/"
-  "This gives a regular expression that is used to identify numbers during the parsing of your TeX expressions.
-By default, the decimal point is `.' and you can use `,' between every three digits before that.
-If you want to use `,' as the decimal indicator, use `/^(?:[0-9]+(?:\\{,\\}[0-9]*)?|\\{,\\}[0-9]+)/'"
+  "Digit regular expression.
+This gives a regular expression that is used to identify numbers
+during the parsing of your TeX expressions.  By default, the decimal point
+is `.' and you can use `,' between every three digits before that.
+If you want to use `,' as the decimal indicator, use
+`/^(?:[0-9]+(?:\\{,\\}[0-9]*)?|\\{,\\}[0-9]+)/'"
   :tag "Digits"
   :type 'string
   :safe 'stringp)
 
 (defcustom math-preview-mathjax-tags-side "right"
-  "This specifies the side on which `\\tag{}' macros will place the tags, and on which automatic equation numbers
-will appear. Set it to `left' to place the tags on the left-hand side."
+  "Tags side.
+This specifies the side on which `\\tag{}' macros will place the tags,
+and on which automatic equation numbers will appear.
+Set it to `left' to place the tags on the left-hand side."
   :tag "Tags side"
   :type '(choice (const :tag "Left" "left")
                  (const :tag "Right" "right"))
   :safe 'stringp)
 
 (defgroup math-preview-mathjax-svg nil
-  "The options below control the operation of the SVG output processor that is run when you include `output/svg'
-in the load array of the loader block.
+  "MathJax SVG configuration options.
+The options below control the operation of the SVG output processor that
+is run when you include `output/svg' in the load array of the loader block.
 http://docs.mathjax.org/en/latest/options/output/svg.html#svg-options"
   :group  'math-preview-mathjax
   :prefix "math-preview-mathjax-svg-")
@@ -509,7 +568,8 @@ http://docs.mathjax.org/en/latest/options/output/svg.html#svg-options"
                     (> n 0))))
 
 (defcustom math-preview-mathjax-svg-mathml-spacing nil
-  "True for `MathML' spacing rules, false for `TeX' rules."
+  "Spacing rules.
+True for `MathML' spacing rules, false for `TeX' rules."
   :tag "MathML spacing"
   :type 'boolean
   :safe t)
@@ -562,7 +622,7 @@ http://docs.mathjax.org/en/latest/options/output/svg.html#svg-options"
 (defvar math-preview--input-buffer ""
   "Buffer holds input message.")
 
-(defvar math-preview--debug-json t
+(defvar math-preview--debug-json nil
   "Switch for enabling JSON dump into `math-preview--output-buffer'.")
 
 (put 'math-preview 'face 'math-preview-face)
@@ -575,8 +635,9 @@ http://docs.mathjax.org/en/latest/options/output/svg.html#svg-options"
 
 ;; {{{ Process
 (defun math-preview--json-bool (arg)
-  "Convert elisp boolean to JSON.
-JSON encoder cannot distinguish `null' and `false', therefore we need to use special object for `false'."
+  "Convert boolean `ARG' to `JSON'.
+JSON encoder cannot distinguish `null' and `false', therefore we need to
+use `json-false' to encode `false'."
   (if arg arg json-false))
 
 (defun math-preview--encode-arguments ()
@@ -821,7 +882,7 @@ type of equation, left and right marks."
          (lmark (car marks))
          (rmark (cdr marks))
          (stripped (s-chop-suffix rmark (s-chop-prefix lmark string)))
-         (table (make-hash-table :size 6)))
+         (table (make-hash-table :size 10)))
     (puthash 'match string table)
     (puthash 'string stripped table)
     (puthash 'type (car (car match)) table)
@@ -838,13 +899,11 @@ type of equation, left and right marks."
          (end (cdr region))
          (match (math-preview--extract-match
                  (buffer-substring beg end)))
-         (type (gethash 'type match))
-         (functions-shared math-preview-preprocess-functions)
-         (functions-specific (cond ((string= type "tex") math-preview-tex-preprocess-functions)
-                                   ((string= type "mathml") math-preview-mathml-preprocess-functions)
-                                   ((string= type "asciimath") math-preview-asciimath-preprocess-functions))))
-    (run-hook-with-args 'functions-specific match)
-    (run-hook-with-args 'functions-shared match)
+         (type (gethash 'type match)))
+    (cond ((string= type "tex") (run-hook-with-args 'math-preview-tex-preprocess-functions match))
+          ((string= type "mathml") (run-hook-with-args 'math-preview-mathml-preprocess-functions match))
+          ((string= type "asciimath") (run-hook-with-args 'math-preview-asciimath-preprocess-functions match)))
+    (run-hook-with-args 'math-preview-preprocess-functions match)
     (math-preview--submit beg end (gethash 'string match) (gethash 'type match) (gethash 'inline match))))
 
 (defun math-preview--region (beg end)

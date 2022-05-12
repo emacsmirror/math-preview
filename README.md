@@ -1,15 +1,13 @@
-`math-preview` uses [MathJax](https://www.mathjax.org/) for displaying TeX and MathML math inline in Emacs
-buffers.
+`math-preview` uses [MathJax](https://www.mathjax.org/) for displaying [TeX](https://tug.org/), [MathML](https://www.w3.org/Math/) and [AsciiMath](http://asciimath.org/) math inline in Emacs buffers.
 
 ![demo](./demo.gif)
 
 ## Installation
 
-*NOTE: it's recommended to use the latest Emacs version with this package. See [this
-issue](https://gitlab.com/matsievskiysv/math-preview/-/issues/1).*
+*NOTE: it's recommended to use the latest Emacs version with this package. See [this issue](https://gitlab.com/matsievskiysv/math-preview/-/issues/1).*
 *NOTE: In case of Schema errors update elisp library and nodejs program to the latest version.*
 
-`math-preview` requires external nodejs program `math-preview`.
+[`math-preview`](./math-preview.el) requires external nodejs program [`math-preview`](./math-preview.js).
 
 It may be installed by issuing the command:
 
@@ -17,8 +15,7 @@ It may be installed by issuing the command:
 > npm install -g git+https://gitlab.com/matsievskiysv/math-preview
 ```
 
-If you don't have `npm` installed, get it from [`asdf`](https://github.com/asdf-vm/asdf-nodejs) or
-[`nvm`](https://github.com/nvm-sh/nvm).
+If you don't have `npm` installed, get it from [`asdf`](https://github.com/asdf-vm/asdf-nodejs) or [`nvm`](https://github.com/nvm-sh/nvm).
 
 Make sure that `math-preview` is in you `PATH`.
 
@@ -26,9 +23,7 @@ Install companion package in Emacs:
 
 <kbd>M-x</kbd>+<kbd>package-install</kbd>+<kbd>math-preview</kbd>
 
-If `math-preview` is not in your path, then you need to set variable `math-preview-command`
-to the location of the program:
-<kbd>M-x</kbd>+<kbd>customize-variable</kbd>+<kbd>math-preview-command</kbd>.
+If `math-preview` is not in your path, then you need to set variable `math-preview-command` to the location of the program: <kbd>M-x</kbd>+<kbd>customize-variable</kbd>+<kbd>math-preview-command</kbd>.
 
 Or if you use `use-package`, just add the following command:
 
@@ -55,9 +50,7 @@ Or if you use `use-package`, just add the following command:
 
 ## Key bindings
 
-`math-preview` does not add any keybindings to global keymap.
-However, it adds a number of keybindings to the image overlay, which become active when your cursor
-is on the image.
+`math-preview` does not add any keybindings to global keymap. However, it adds a number of keybindings to the image overlay, which become active when your cursor is on the image.
 
 |   |   |
 |:--|:--|
@@ -69,33 +62,29 @@ is on the image.
 
 ## Equation preprocessing
 
-It might be useful to preprocess equation strings before passing them to MathJax.
-For this you may use `math-preview-preprocess-functions`, `math-preview-preprocess-tex-functions`
-and `math-preview-preprocess-mathml-functions` customization options.
-Each equation would be modified by functions in these lists, chained from left to right.
+It might be useful to preprocess equation strings before passing them to MathJax. For this you may use `math-preview-preprocess-functions`, `math-preview-tex-preprocess-functions`, `math-preview-mathml-preprocess-functions` and `math-preview-asciimath-preprocess-functions` customization options. Each equation would be modified by functions in these lists, chained from left to right.
 
-`math-preview-preprocess-functions` are applied to both TeX and MathML equations after
-`math-preview-preprocess-mathml-functions` and `math-preview-preprocess-tex-functions` and have
-simpler syntax.
-Each function in this list takes string argument and returns a string.
-For example, you might want to replace some variable with another in your equations.
+`math-preview-preprocess-functions` are applied to all equations after type specific functions `math-preview-preprocess-functions`, `math-preview-tex-preprocess-functions`, `math-preview-mathml-preprocess-functions` and `math-preview-asciimath-preprocess-functions`. In Emacs terminology, these variables are [abnormal hooks](https://www.gnu.org/software/emacs/manual/html_node/elisp/Hooks.html). Each of them takes one argument that is a hash table with fields:
+- `match`: matched string including marks
+- `string`: matched string without marks
+- `type`: equation type (`tex`, `mathml` or `asciimath`)
+- `inline`: equation inline flag
+- `lmark` and `rmark`: left and right marks respectively.
+You may modify `string` field in place to influence further equation processing.
+For example, you might want to replace some variable with another in your equations:
 ```elisp
-(lambda (s)
-  (s-replace "\\phi" "\\varphi" s))
+(lambda (x)
+  (puthash 'string
+	   (s-replace "\\phi" "\\varphi"
+		      (gethash 'string x))
+	   x))
 ```
 
-`math-preview-preprocess-tex-functions` and `math-preview-preprocess-mathml-functions` are applied
-to only TeX and MathML equations respectively.
-They provide greater flexibility but have a bit more complicated syntax.
-Each function in these lists takes list argument in format `(original-string left-mark right-mark)`
-and returns a list in format `(processed-string left-mark right-mark)`.
-For example, you might want to replace undefined macro with a placeholder.
+Another practical example of equation preprocessing is a standard MathML hook
 ```elisp
-(lambda (l)
-  (list (concat "\\newcommand{textup}[1]{#1}" (-first-item l)) (-second-item l) (-third-item l)))
+(lambda (x) (puthash 'string (gethash 'match x) x))
 ```
-This function prepends equation with missing definition of the `textup` macro.
-
+which replaces stripped equation `string` with the unstripped version `match` in order to preserve `<math></math>` tags.
 
 ## MathJax examples
 
