@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 4.0.0
+;; Version: 4.0.1
 ;; Package-Requires: ((emacs "26.1") (json "1.5") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -240,7 +240,7 @@ http://docs.mathjax.org/en/latest/input/tex/extensions/configenvironments.html."
   :group  'math-preview-tex
   :prefix "math-preview-tex-package-")
 
-(defcustom math-preview-tex-default-packages '("autoload")
+(defcustom math-preview-tex-default-packages '("autoload" "ams" "cancel" "color")
   "List of default `TeX' packages to load.
 This array lists the names of the packages (extensions) that should be
 initialized by the `TeX' input processor.  Packages not in this list must

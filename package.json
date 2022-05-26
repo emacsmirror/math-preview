@@ -1,6 +1,6 @@
 {
   "name": "math-preview",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "type": "commonjs",
   "description": "Convert math to image",
   "main": "math-preview.js",
