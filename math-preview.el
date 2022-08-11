@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 4.0.3
+;; Version: 4.1.0
 ;; Package-Requires: ((emacs "26.1") (json "1.4") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -56,7 +56,11 @@
 (defcustom math-preview-command "math-preview"
   "TeX conversion program name."
   :tag "Command name"
-  :type 'string)
+  :type '(choice (string :tag "Command name")
+                 (repeat :tag "Command arguments" (string :tag "Argument")))
+  :safe (lambda (n) (or (stringp n)
+                   (and (listp n)
+                        (-all-p #'stringp n)))))
 
 (defcustom math-preview-raise 0.4
   "Adjust image vertical position."
@@ -722,11 +726,15 @@ use `json-false' to encode `false'."
         (process-connection-type nil))
     (unless proc
       (math-preview-stop-process) ; clear garbage from previous session
-      (let ((p (executable-find math-preview-command)))
+      (let* ((command (if (listp math-preview-command)
+                          math-preview-command
+                        (list math-preview-command)))
+             (executable (car command))
+             (p (executable-find executable)))
         (unless p
-          (error "%s is not an executable" math-preview-command))
+          (error "%s is not an executable" executable))
         (setq proc (make-process :name "math-preview"
-                                 :command (-concat (list math-preview-command)
+                                 :command (-concat command
                                                    (math-preview--encode-arguments))
                                  :coding 'utf-8
                                  :noquery t
