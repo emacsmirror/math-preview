@@ -26,7 +26,7 @@ function removeDuplicates(arr) {
 }
 
 // JSON communication schema version.
-const VERSION = 4;
+const VERSION = 5;
 
 // JSON communication schema.
 const SCHEMA = {
@@ -51,7 +51,9 @@ const SCHEMA = {
         "to": {
             "type": "string",
             "enum": ["svg"]
-        }
+        },
+        "reset_numbering": { "type": "bool" },
+        "reset_from": { "type": "number" }
     },
     required: ["id", "em", "ex", "containerWidth", "lineWidth", "payload", "inline", "from", "to", "scale"],
     additionalProperties: false
@@ -227,6 +229,9 @@ mathjax_full.init(CONFIG).then((MathJax) => {
               try {
                   let input = JSON.parse(line);
                   jsonschema.validate(input, SCHEMA, { throwFirst: true });
+                  if (input.reset_numbering) {
+                      MathJax.texReset(input.reset_from);
+                  }
                   // https://docs.mathjax.org/en/latest/web/typeset.html#conversion-options
                   MathJax[`${input.from}2${input.to}Promise`](input.payload, {
                       display: !input.inline,

@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 4.1.0
+;; Version: 5.0.0
 ;; Package-Requires: ((emacs "26.1") (json "1.4") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -559,6 +559,19 @@ If you want to use `,' as the decimal indicator, use
   :type 'string
   :safe 'stringp)
 
+(defcustom math-preview-mathjax-tags "none"
+  "Auto-numbering tags.
+This controls whether equations are numbered and how.
+By default it is set to `none' to be compatible with earlier versions of MathJax where auto-numbering
+was not performed (so pages will not change their appearance).
+You can change this to `ams' for equations numbered as the AMSmath package would do,
+or `all' to get an equation number for every displayed equation."
+  :tag "Tags"
+  :type '(choice (const :tag "None" "none")
+                 (const :tag "AMS math" "ams")
+                 (const :tag "All" "all"))
+  :safe 'stringp)
+
 (defcustom math-preview-mathjax-tags-side "right"
   "Tags side.
 This specifies the side on which `\\tag{}' macros will place the tags,
@@ -628,9 +641,11 @@ True for `MathML' spacing rules, false for `TeX' rules."
 ;; }}}
 
 ;; {{{ Variables
-(defvar math-preview--schema-version 4 "`math-preview' json schema version.")
+(defvar math-preview--schema-version 5 "`math-preview' json schema version.")
 
 (defvar math-preview--queue nil "Job queue.")
+
+(defvar math-preview--reset-numbering nil "MathJax reset numbering flag. Number to start new numbering from or `nil'.")
 
 (defvar math-preview-map (let ((keymap (make-keymap)))
                            (suppress-keymap keymap t)
@@ -689,6 +704,7 @@ use `json-false' to encode `false'."
          (tex (list (cons "tex" (list
                                  (cons"processEscapes" (math-preview--json-bool math-preview-mathjax-svg-mathml-spacing))
                                  (cons "digits" math-preview-mathjax-tex-digits)
+                                 (cons "tags" math-preview-mathjax-tags)
                                  (cons "tagSide" math-preview-mathjax-tags-side)
                                  (cons "tagIndent" math-preview-mathjax-tag-indent)))))
          (tex-macros (list (cons "tex/macros" math-preview-tex-macros)))
@@ -826,8 +842,11 @@ Call `math-preview--process-input' for strings with carriage return."
                         :lineWidth (math-preview--number-or-function math-preview-mathjax-line-width)
                         :payload string
                         :from type
-                        :to "svg"))
+                        :to "svg"
+                        :reset_numbering (math-preview--json-bool (not (null math-preview--reset-numbering)))
+                        :reset_from (- (or math-preview--reset-numbering 1) 1)))
                  "\n"))
+      (setq math-preview--reset-numbering nil)
       (when math-preview--debug-json
         (with-current-buffer (get-buffer-create "*math-preview*")
           (goto-char (point-max))
@@ -1042,6 +1061,12 @@ Scale is changed by `N' times `math-preview-scale-increment'"
              (list (cdr (car (cdr display)))))
         (kill-new (plist-get list ':data))
         (message "Image copied to clipboard")))))
+
+;;;###autoload
+(defun math-preview-reset-numbering (num)
+  "Reset MathJax equation numbering from `NUM'."
+  (interactive "p")
+  (setq math-preview--reset-numbering num))
 ;; }}}
 
 
