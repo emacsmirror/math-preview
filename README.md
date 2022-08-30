@@ -47,6 +47,7 @@ Or if you use `use-package`, just add the following command:
 | `math-preview-copy-svg` | Copy SVG code to clipboard |
 | `math-preview-start-process` | Start child process (Not required. However, calling this function early would reduce first render time) |
 | `math-preview-stop-process` | Stop child process |
+| `math-preview-math-preview-reset-numbering` | Reset automatic equation numbering |
 
 ## Key bindings
 
@@ -130,7 +131,26 @@ Note that some packages require loader to be added. This is done by adding loade
 ### Autoload packages
 It is possible to automatically load packages when certain macros are invoked. For this you should add `autoload` package to default packages list in <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex-packages</kbd> (added by default) and then assign macro and environment names to packages in <kbd>M-x</kbd>+<kbd>customize-group</kbd>+<kbd>math-preview-tex-packages-autoload</kbd>.
 
-## MathJax examples
+### Equation labels
+MathJax keeps track of equation labels. Due to this, second conversion of the equation will produce an error `<label> multiply defined`. There are three possible solutions to this problem:
+1. Use TeX preprocessing to remove labels from the equations. For this, in the customize menu <kbd>M-x customize-group math-preview-tex</kbd>->Preprocess TeX functions add the following function
+   ```emacs
+   (lambda (x)(puthash 'string (s-replace-regexp "\\label{.+?}" "" (gethash 'string x)) x))
+   ```
+2. Reset MathJax my issuing command `math-preview-reset-numbering`
+3. Restart `math-preview` process by issuing command `math-preview-stop-process`
+
+### Equation automatic numbering
+MathJax may automatically number equations. To enable this feature set `Tags` field in <kbd>M-x customize-group math-preview-mathjax-tex</kbd> customize menu to `AMS math` or `All`. After `math-preview` process reset equations will be automatically numbered. In order to reset equation numbers issue command `math-preview-reset-numbering`. Numerical argument to this function (<kbd>C-u <num></kbd>) selects the first equation number. Note, that this function also resets the equation labels.
+
+It may be desired to reset equation numbers each time the certain command is called. It may be achieved by using `advice-add` function. For example, the following command resets numbering from `1` each time `math-preview-all` function is called.
+```emacs
+(advice-add #'math-preview-all :before (lambda () (math-preview-reset-numbering 1)))
+```
+
+---
+
+# MATHJAX examples
 
 All equations are displayed inline: $\sqrt[3]{\frac xy}$ $$\frac{n!}{k!(n-k)!} = \binom{n}{k}$$ \(\sqrt[n]{1+x+x^2+x^3+\dots+x^n}\) \[\int_0^\infty \mathrm{e}^{-x}\,\mathrm{d}x\]
 
