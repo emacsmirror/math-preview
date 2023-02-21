@@ -148,6 +148,12 @@ It may be desired to reset equation numbers each time the certain command is cal
 (advice-add #'math-preview-all :before (lambda () (math-preview-reset-numbering 1)))
 ```
 
+### Debug mode
+In order to trace possible problems with the package it is recommended to start Emacs using command
+```elisp
+emacs -Q --eval '(progn (package-initialize)(math-preview-start-process))'
+```
+
 ---
 
 # MATHJAX examples

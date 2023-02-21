@@ -216,6 +216,8 @@ process.argv.slice(2).forEach(
 );
 
 console.error(`mathjax configuration\n${JSON.stringify(CONFIG, null, 4)}`);
+console.error(`math-preview.js schema\n${JSON.stringify(SCHEMA, null, 4)}`);
+console.error(`math-preview.js version ${VERSION}`);
 
 mathjax_full.init(CONFIG).then((MathJax) => {
     const adaptor = MathJax.startup.adaptor;
