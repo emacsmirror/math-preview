@@ -66,11 +66,16 @@ Or if you use `use-package`, just add the following command:
 It might be useful to preprocess equation strings before passing them to MathJax. For this you may use `math-preview-preprocess-functions`, `math-preview-tex-preprocess-functions`, `math-preview-mathml-preprocess-functions` and `math-preview-asciimath-preprocess-functions` customization options. Each equation would be modified by functions in these lists, chained from left to right.
 
 `math-preview-preprocess-functions` are applied to all equations after type specific functions `math-preview-preprocess-functions`, `math-preview-tex-preprocess-functions`, `math-preview-mathml-preprocess-functions` and `math-preview-asciimath-preprocess-functions`. In Emacs terminology, these variables are [abnormal hooks](https://www.gnu.org/software/emacs/manual/html_node/elisp/Hooks.html). Each of them takes one argument that is a hash table with fields:
-- `match`: matched string including marks
-- `string`: matched string without marks
-- `type`: equation type (`tex`, `mathml` or `asciimath`)
-- `inline`: equation inline flag
-- `lmark` and `rmark`: left and right marks respectively.
+- `match`: matched string including marks;
+- `string`: matched string without marks;
+- `type`: equation type (`tex`, `mathml` or `asciimath`);
+- `inline`: equation inline flag;
+- `priority`: priority value;
+- `lmark` and `rmark`: left and right marks respectively;
+- `marks`: cons pair of `lmark` and `rmark`;
+- `lregexp` and `rregexp`: left and right regexp flags respectively;
+- `regexp`: cons pair of `lregexp` and `lregexp`;
+- `prefix` and `suffix`: left and right matched marks. Equal to `lmark` and `rmark` is regexp is not used.
 You may modify `string` field in place to influence further equation processing.
 For example, you might want to replace some variable with another in your equations:
 ```elisp
@@ -150,6 +155,8 @@ It may be desired to reset equation numbers each time the certain command is cal
 
 ### Regexp equation marks
 It is possible to use regexp equation marks. This feature is enabled for each tag individually via `Left regexp` and `Right regexp` checkboxes. This may lead to unexpected results and should be used with caution.
+
+Equation marks use Emacs style regexp. It's recommended to use <kbd>regexp-builder</kbd> to create valid regexp patterns.
 
 #### Equation mark priority
 Internally, equation marks are sorted by length to find the best match (for example, to prioritize `$$` over `$`). When using regexp equation marks, this mechanism no longer applies. The `Priority` field lets user adjust equation mark priority.

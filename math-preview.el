@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 5.1.0
+;; Version: 5.1.1
 ;; Package-Requires: ((emacs "26.1") (json "1.4") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -920,8 +920,8 @@ Call `math-preview--process-input' for strings with carriage return."
 (defun math-preview--find-gaps (beg end)
   "Find gaps in math-preview overlays in region between `BEG' and `END'."
   (let ((o (math-preview--overlays beg end)))
-    (->> (-zip (-concat (list beg) (-sort #'< (-map #'overlay-end o)))
-               (-concat (-sort #'< (-map #'overlay-start o)) (list end)))
+    (->> (-zip-pair (-concat (list beg) (-sort #'< (-map #'overlay-end o)))
+                    (-concat (-sort #'< (-map #'overlay-start o)) (list end)))
          (--filter (> (cdr it) beg))
          (--filter (< (car it) end)))))
 
@@ -952,24 +952,24 @@ Call `math-preview--process-input' for strings with carriage return."
   "Concatenate and reformat mark lists.
 Output list format `(type left right inline? priority regexp?)'"
   (->> (-concat
-        (--map (list "tex" (-first-item it) (-second-item it) nil
+        (--map (list "asciimath" (-first-item it) (-second-item it) t
                      (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
-               math-preview-tex-marks)
-        (--map (list "tex" (-first-item it) (-second-item it) t
-                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
-               math-preview-tex-marks-inline)
-        (--map (list "mathml" (-first-item it) (-second-item it) nil
-                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
-               math-preview-mathml-marks)
-        (--map (list "mathml" (-first-item it) (-second-item it) t
-                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
-               math-preview-mathml-marks-inline)
+               math-preview-asciimath-marks-inline)
         (--map (list "asciimath" (-first-item it) (-second-item it) nil
                      (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
                math-preview-asciimath-marks)
-        (--map (list "asciimath" (-first-item it) (-second-item it) t
+        (--map (list "mathml" (-first-item it) (-second-item it) t
                      (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
-               math-preview-asciimath-marks-inline))
+               math-preview-mathml-marks-inline)
+        (--map (list "mathml" (-first-item it) (-second-item it) nil
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-mathml-marks)
+        (--map (list "tex" (-first-item it) (-second-item it) t
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-tex-marks-inline)
+        (--map (list "tex" (-first-item it) (-second-item it) nil
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-tex-marks))
        (--sort (cond
                 ((not (= (-fifth-item it) (-fifth-item other)))
                  (> (-fifth-item it) (-fifth-item other)))
@@ -1015,7 +1015,7 @@ type of equation, left and right marks."
                                         (s-concat rmark "$") string-no-newlines))))
                               string)
                    rmark))
-         (stripped (s-chop-left (length prefix) (s-chop-right (length suffix) string)))
+         (stripped (substring string (length prefix) (* -1 (length suffix))))
          (table (make-hash-table :size 15)))
     (puthash 'match string table)
     (puthash 'string stripped table)
@@ -1028,6 +1028,7 @@ type of equation, left and right marks."
     (puthash 'prefix prefix table)
     (puthash 'suffix suffix table)
     (puthash 'rregexp rregexp table)
+    (puthash 'lregexp lregexp table)
     (puthash 'regexp regexp table)
     table))
 ;; }}}
