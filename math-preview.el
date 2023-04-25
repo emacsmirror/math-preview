@@ -2,7 +2,7 @@
 
 ;; Author: Matsievskiy S.V.
 ;; Maintainer: Matsievskiy S.V.
-;; Version: 5.0.0
+;; Version: 5.1.0
 ;; Package-Requires: ((emacs "26.1") (json "1.4") (dash "2.18.0") (s "1.12.0"))
 ;; Homepage: https://gitlab.com/matsievskiysv/math-preview
 ;; Keywords: convenience
@@ -140,22 +140,33 @@ These functions are evaluated after `math-preview-tex-preprocess-functions',
   :prefix "math-preview-tex-")
 
 (defcustom math-preview-tex-marks
-  '(("\\begin{equation}" "\\end{equation}")
-    ("\\begin{equation*}" "\\end{equation*}")
-    ("\\[" "\\]")
-    ("$$" "$$"))
-  "Strings marking beginning and end of TeX equation."
+  '(("\\begin{equation}" "\\end{equation}" 0 nil nil)
+    ("\\begin{equation*}" "\\end{equation*}" 0 nil nil)
+    ("\\[" "\\]" 0 nil nil)
+    ("$$" "$$" 0 nil nil))
+  "Strings marking beginning and end of TeX equation. By default, when searching for equation marks,
+the largest match has the priority."
   :tag "TeX equation marks"
-  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair"
+                                         (string :tag "Left  mark")
+                                         (string :tag "Right mark")
+                                         (integer :tag "Priority")
+                                         (boolean :tag "Left  regexp")
+                                         (boolean :tag "Right regexp")))
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-tex-marks-inline
-  '(("\\(" "\\)")
-    ("$" "$")
-    ("`$" "`$"))
+  '(("\\(" "\\)" 0 nil nil)
+    ("$" "$" 0 nil nil)
+    ("`$" "`$" 0 nil nil))
   "Strings marking beginning and end of TeX inline equation."
   :tag "TeX equation inline marks"
-  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair"
+                                         (string :tag "Left  mark")
+                                         (string :tag "Right mark")
+                                         (integer :tag "Priority")
+                                         (boolean :tag "Left  regexp")
+                                         (boolean :tag "Right regexp")))
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-tex-preprocess-functions
@@ -407,16 +418,26 @@ This corresponds to the `arrowdel' option of the `physics'
   :prefix "math-preview-mathml-")
 
 (defcustom math-preview-mathml-marks
-  '(("<math" "</math>"))
+  '(("<math" "</math>" 0 nil nil))
   "Strings marking beginning and end of MathML equation."
   :tag "MathML equation marks"
-  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair"
+                                         (string :tag "Left  mark")
+                                         (string :tag "Right mark")
+                                         (integer :tag "Priority")
+                                         (boolean :tag "Left  regexp")
+                                         (boolean :tag "Right regexp")))
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-mathml-marks-inline (list)
   "Strings marking beginning and end of MathML inline equation."
   :tag "MathML equation inline marks"
-  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair"
+                                         (string :tag "Left  mark")
+                                         (string :tag "Right mark")
+                                         (integer :tag "Priority")
+                                         (boolean :tag "Left  regexp")
+                                         (boolean :tag "Right regexp")))
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-mathml-preprocess-functions '((lambda (x) (puthash 'string (gethash 'match x) x)))
@@ -444,13 +465,23 @@ functions."
 (defcustom math-preview-asciimath-marks (list)
   "Strings marking beginning and end of AsciiMath equation."
   :tag "AsciiMath equation marks"
-  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair"
+                                         (string :tag "Left  mark")
+                                         (string :tag "Right mark")
+                                         (integer :tag "Priority")
+                                         (boolean :tag "Left  regexp")
+                                         (boolean :tag "Right regexp")))
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-asciimath-marks-inline (list)
   "Strings marking beginning and end of AsciiMath inline equation."
   :tag "AsciiMath equation inline marks"
-  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair" (string :tag "Left  mark") (string :tag "Right mark")))
+  :type '(repeat :tag "Mark pairs" (list :tag "Mark pair"
+                                         (string :tag "Left  mark")
+                                         (string :tag "Right mark")
+                                         (integer :tag "Priority")
+                                         (boolean :tag "Left  regexp")
+                                         (boolean :tag "Right regexp")))
   :safe #'math-preview--check-marks)
 
 (defcustom math-preview-asciimath-preprocess-functions (list)
@@ -672,6 +703,9 @@ True for `MathML' spacing rules, false for `TeX' rules."
 (defvar math-preview--debug-json nil
   "Switch for enabling JSON dump into `math-preview--output-buffer'.")
 
+(defvar math-preview--newline-replacement-string " "
+  "String that replaces `\n' character before the regexp matching.")
+
 (put 'math-preview 'face 'math-preview-face)
 (put 'math-preview 'keymap math-preview-map)
 (put 'math-preview 'evaporate t)
@@ -875,9 +909,12 @@ Call `math-preview--process-input' for strings with carriage return."
        (not (-filter 'null (--map (and
 	                           (listp it)
 	                           (stringp (-first-item it))
+                                   (not (s-matches? "^\s*$" (-first-item it)))
 	                           (stringp (-second-item it))
-	                           (not (s-matches? "^\s*$" (-first-item it)))
-	                           (not (s-matches? "^\s*$" (-second-item it))))
+	                           (not (s-matches? "^\s*$" (-second-item it)))
+                                   (integerp (-third-item it))
+                                   (booleanp (-fourth-item it))
+                                   (booleanp (-fifth-item it)))
 			          arg)))))
 
 (defun math-preview--find-gaps (beg end)
@@ -895,13 +932,17 @@ Call `math-preview--process-input' for strings with carriage return."
                        (s-join "\\|"
                                (--map
                                 (s-join ".+?"
-                                        (list (regexp-quote (car it))
-                                              (regexp-quote (cdr it))))
-                                (-map #'cdr (math-preview--create-mark-list))))
+                                        (list (if (nth 5 it)
+                                                  (-second-item it)
+                                                (regexp-quote (-second-item it)))
+                                              (if (nth 6 it)
+                                                  (-third-item it)
+                                                (regexp-quote (-third-item it)))))
+                                (math-preview--create-mark-list)))
                        "\\)")))
     (->> (s-matched-positions-all
           regex
-          (s-replace-all '(("\n" . " ")) text))
+          (s-replace-all `(("\n" . ,math-preview--newline-replacement-string)) text))
          (-filter #'identity)
          (-flatten)
          (--map (cons (+ beg (car it))
@@ -909,47 +950,85 @@ Call `math-preview--process-input' for strings with carriage return."
 
 (defun math-preview--create-mark-list ()
   "Concatenate and reformat mark lists.
-Output list format `((type . inline?) . (left . right))'"
-  (->> (list
-        (cons (cons "tex" nil) (--map (cons (-first-item it) (-second-item it))
-                                      math-preview-tex-marks))
-        (cons (cons "tex" t) (--map (cons (-first-item it) (-second-item it))
-                                    math-preview-tex-marks-inline))
-        (cons (cons "mathml" nil) (--map (cons (-first-item it) (-second-item it))
-                                         math-preview-mathml-marks))
-        (cons (cons "mathml" t) (--map (cons (-first-item it) (-second-item it))
-                                       math-preview-mathml-marks-inline))
-        (cons (cons "asciimath" nil) (--map (cons (-first-item it) (-second-item it))
-                                            math-preview-asciimath-marks))
-        (cons (cons "asciimath" t) (--map (cons (-first-item it) (-second-item it))
-                                          math-preview-asciimath-marks-inline)))
-       (--map (-zip-fill (car it) '() (cdr it)))
-       (-flatten-n 1)
-       (--sort (> (length (car (cdr it))) (length (car (cdr other)))))))
+Output list format `(type left right inline? priority regexp?)'"
+  (->> (-concat
+        (--map (list "tex" (-first-item it) (-second-item it) nil
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-tex-marks)
+        (--map (list "tex" (-first-item it) (-second-item it) t
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-tex-marks-inline)
+        (--map (list "mathml" (-first-item it) (-second-item it) nil
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-mathml-marks)
+        (--map (list "mathml" (-first-item it) (-second-item it) t
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-mathml-marks-inline)
+        (--map (list "asciimath" (-first-item it) (-second-item it) nil
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-asciimath-marks)
+        (--map (list "asciimath" (-first-item it) (-second-item it) t
+                     (or (-third-item it) 0) (-fourth-item it) (-fifth-item it))
+               math-preview-asciimath-marks-inline))
+       (--sort (cond
+                ((not (= (-fifth-item it) (-fifth-item other)))
+                 (> (-fifth-item it) (-fifth-item other)))
+                ((not (= (length (-second-item it)) (length (-second-item other))))
+                 (> (length (-second-item it)) (length (-second-item other))))
+                ((not (= (length (-third-item it)) (length (-third-item other))))
+                 (> (length (-third-item it)) (length (-third-item other))))
+                (t t)))))
 
 (defun math-preview--extract-match (string)
   "Extract match data from given `STRING'.
 Return hash table containing original string, string with stripped marks,
 type of equation, left and right marks."
-  (let* ((match (->> (math-preview--create-mark-list)
+  (let* ((string-no-newlines (s-replace-all `(("\n" . ,math-preview--newline-replacement-string)) string))
+         (match (->> (math-preview--create-mark-list)
                      (--first (s-matches-p
                                (s-concat "^"
-                                         (regexp-quote (car (cdr it)))
+                                         (if (nth 5 it)
+                                             (-second-item it)
+                                           (regexp-quote (-second-item it)))
                                          ".+?"
-                                         (regexp-quote (cdr (cdr it)))
+                                         (if (nth 6 it)
+                                             (-third-item it)
+                                           (regexp-quote (-third-item it)))
                                          "$")
-                               (s-replace-all '(("\n" . " ")) string)))))
-         (marks (cdr match))
-         (lmark (car marks))
-         (rmark (cdr marks))
-         (stripped (s-chop-suffix rmark (s-chop-prefix lmark string)))
-         (table (make-hash-table :size 10)))
+                               string-no-newlines))))
+         (lmark (-second-item match))
+         (rmark (-third-item match))
+         (marks (cons lmark rmark))
+         (lregexp (nth 5 match))
+         (rregexp (nth 6 match))
+         (regexp (cons lregexp rregexp))
+         (prefix (if lregexp (s-left
+                              (cdr (-first-item
+                                    (s-matched-positions-all
+                                     (s-concat "^" lmark) string-no-newlines)))
+                              string)
+                   lmark))
+         (suffix (if rregexp (s-right
+                              (- (length string)
+                                 (car (-first-item
+                                       (s-matched-positions-all
+                                        (s-concat rmark "$") string-no-newlines))))
+                              string)
+                   rmark))
+         (stripped (s-chop-left (length prefix) (s-chop-right (length suffix) string)))
+         (table (make-hash-table :size 15)))
     (puthash 'match string table)
     (puthash 'string stripped table)
-    (puthash 'type (car (car match)) table)
-    (puthash 'inline (cdr (car match)) table)
+    (puthash 'type (-first-item match) table)
+    (puthash 'inline (-fourth-item match) table)
+    (puthash 'priority (-fifth-item match) table)
     (puthash 'lmark lmark table)
     (puthash 'rmark rmark table)
+    (puthash 'marks marks table)
+    (puthash 'prefix prefix table)
+    (puthash 'suffix suffix table)
+    (puthash 'rregexp rregexp table)
+    (puthash 'regexp regexp table)
     table))
 ;; }}}
 

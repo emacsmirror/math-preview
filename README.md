@@ -148,6 +148,18 @@ It may be desired to reset equation numbers each time the certain command is cal
 (advice-add #'math-preview-all :before (lambda () (math-preview-reset-numbering 1)))
 ```
 
+### Regexp equation marks
+It is possible to use regexp equation marks. This feature is enabled for each tag individually via `Left regexp` and `Right regexp` checkboxes. This may lead to unexpected results and should be used with caution.
+
+#### Equation mark priority
+Internally, equation marks are sorted by length to find the best match (for example, to prioritize `$$` over `$`). When using regexp equation marks, this mechanism no longer applies. The `Priority` field lets user adjust equation mark priority.
+
+### Debug mode
+In order to trace possible problems with the package it is recommended to start Emacs using command
+```elisp
+emacs -Q --eval '(progn (package-initialize)(math-preview-start-process))'
+```
+
 ---
 
 # MATHJAX examples
