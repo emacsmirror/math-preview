@@ -35,6 +35,7 @@
 (require 'json)
 (require 'dash)
 (require 's)
+(require 'xml)
 
 
 ;; {{{ Customization
@@ -63,12 +64,24 @@
                         (-all-p #'stringp n)))))
 
 (defcustom math-preview-raise 0.4
-  "Adjust image vertical position."
+  "Adjust vertical position of inline images.
+This depends on `math-preview-raise-enable'."
   :tag "Image vertical position"
   :type 'number
   :safe (lambda (n) (and (numberp n)
                     (> n 0)
                     (< n 1))))
+
+(defcustom math-preview-raise-enable nil
+  "Enable vertical position adjustment for inline images.
+When set to nil (the default), inline images are auto-positioned
+according to their \\=`vertical-align\\=` properties.  For any other
+value, their position is controlled by `math-preview-raise'."
+  ;; If the default of auto-positioning proves sufficient, then `math-preview-raise` and `-raise-enable`
+  ;; might eventually be deprecated.
+  :tag "Image vertical position enable"
+  :type 'boolean
+  :safe t)
 
 (defcustom math-preview-margin '(5 . 5)
   "Adjust image margin."
@@ -706,6 +719,10 @@ True for `MathML' spacing rules, false for `TeX' rules."
 (defvar math-preview--newline-replacement-string " "
   "String that replaces `\n' character before the regexp matching.")
 
+(defvar math-preview--vertical-align-pattern (concat "\\(?:\\`\\|[; ]\\)vertical-align: *\\([^; ]+\\)")
+  "The pattern of a CSS \\=`vertical-align\\=` property.
+It captures group (1) the property value.")
+
 (put 'math-preview 'face 'math-preview-face)
 (put 'math-preview 'keymap math-preview-map)
 (put 'math-preview 'evaporate t)
@@ -804,6 +821,21 @@ use `json-false' to encode `false'."
     (when proc
       (kill-process proc))))
 
+(defun math-preview--svg-element (svg-src)
+  "The parsed SVG document element of SVG-SRC, or nil if parsing fails."
+  (with-temp-buffer
+    (insert svg-src)
+    (goto-char 1)
+    (xml-parse-tag))); Here avoiding the foreign library dependency of `libxml-parse-xml-region`.
+
+(defun math-preview--make-image (svg-src ascent)
+  (create-image svg-src 'svg t
+                :scale math-preview-scale
+                :ascent ascent
+                :pointer 'hand
+                :margin math-preview-margin
+                :relief math-preview-relief))
+
 (defun math-preview--process-filter (_process message)
   "Handle `MESSAGE' from math-preview `PROCESS'.
 Call `math-preview--process-input' for strings with carriage return."
@@ -825,14 +857,17 @@ Call `math-preview--process-input' for strings with carriage return."
       (insert "Incoming:")
       (insert message)
       (insert "\n")))
-  (ignore-errors
+  (when (and (string-prefix-p "{" message) (string-suffix-p "}" message)
+             (string-search "\"id\":" message 1))
     (let* ((msg (json-read-from-string message))
            (id (cdr (assoc 'id msg)))
            (type (cdr (assoc 'type msg)))
            (payload (cdr (assoc 'payload msg)))
-           target-overlay)
+           inline target-overlay)
       (unless (= id -1)
-        (setq target-overlay (cdr (--first (= (car it) id) math-preview--queue)))
+        (let ((p (--first (= (car it) id) math-preview--queue)))
+          (setq target-overlay (nth 1 p)
+                inline (nth 2 p)))
         (setq math-preview--queue (--remove (= (car it) id) math-preview--queue)))
       (cond
        ((string= "error" type) (message "%s" payload) (when target-overlay (delete-overlay target-overlay)))
@@ -840,16 +875,81 @@ Call `math-preview--process-input' for strings with carriage return."
         (let ((table (make-hash-table :size 1)))
           (puthash 'string payload table)
           (run-hook-with-args 'math-preview-svg-postprocess-functions table)
+          (setq payload (gethash 'string table)))
+        (let (image ascent; The image and its `ascent` property.
+              raise; Display `raise` factor.
+              svg-el va rh)
+          (if (not inline)
+
+              ;; Block-form image
+              ;; ────────────────
+              (setq ascent 'center; Centered on the vertical centerline.  This generally looks better
+                          ;;; than 50% (the default) or 100%.  The difference is slight when block
+                          ;;; math is written as an actual block (isolated from other text lines),
+                    raise 0); but large when written inline (then the alternatives look screwy).
+
+            ;; Inline image
+            ;; ────────────
+            (setq svg-el (math-preview--svg-element payload)
+                  ascent 50; Centered on the baseline (default).  These two settings establish a default
+                  raise math-preview-raise); alignment in case auto-positioning (below) either gets
+            (when (and (not math-preview-raise-enable); disabled by `math-preview-raise-enable` or fails.
+                       svg-el
+                       (setq rh (xml-get-attribute-or-nil svg-el 'height))
+                       (let ((style (xml-get-attribute svg-el 'style)))
+                         (when (string-match math-preview--vertical-align-pattern style)
+                           (setq va (match-string 1 style)))))
+              (let ((is-ex-va (string-suffix-p "ex" va))
+                    (is-ex-rh (string-suffix-p "ex" rh))
+                    ah; Absolute height of the realized image, in pixels.
+                    px-per-ex; Consequent ex-to-pixel conversion factor.
+                    hb)
+                (setq va (string-to-number va); Numeric part of CSS `vertical-align` property.
+                      rh (string-to-number rh)); Numeric part of `height` attribute.
+                (when (and (or is-ex-va (zerop va)); Requiring that both `va` and `rh` be expressed
+                           (or is-ex-rh (zerop rh))); relatively, in ex units, as expected.
+
+                  ;; Auto-position the inline image by applying its `vertical-align` property
+                  ;; ─────────────
+                  (setq ascent 100; Sit the image on the baseline from which `vertical-align`
+                          ;;; is defined as an offset. [VA]
+                        image (math-preview--make-image payload ascent)
+                        ah (cdr (image-size image :pixels))); Height of image plus any decoration.
+                  (let ((m (image-property image :margin))  ; Now subtract the decoration, leaving
+                        (r (image-property image :relief))) ; just the height of the bare image:
+                    (when m
+                      (when (consp m) (setq m (cdr m)))
+                      (cl-assert (natnump m))
+                      (setq ah (- ah (* m 2))))
+                    (when r
+                      (cl-assert (integerp r))
+                      (setq ah (- ah (* (abs r) 2)))))
+                  (let ((hf (frame-char-height))); Height of the frame default font, in pixels.
+                    (setq hb (default-font-height)); Height of the buffer default font, in pixels. [BDF]
+                    (when (/= hf hb); Then a different font size was set on the buffer, and Emacs will
+                      (setq ah (round (* ah (/ hb (float hf))))))); scale the image accordingly. [SBF]
+                  (setq rh (float rh); Likely a no-op.  Regardless it ensures that
+                        px-per-ex (/ ah rh); this division uses floating-point math.
+                        ;;
+                        ;; The calculation here is basically a conversion from the units of MathJax’s
+                        ;; `vertical-align` CSS property (ex) to those of Emacs’s `raise` factor
+                        ;; (font-heights) via the intermediary of display pixels (px).
+                        ;;
+                        ;;               px  =  ex ⋅ px/ex + rounding-correction    (1, 2)
+                        ;;     font-heights  =  px ⋅ font-heights/px                (3)
+                        ;;
+                        va (* va px-per-ex);         (1) Convert from ex units to pixels.
+                        va (+ va (copysign 0.5 va)); (2) Extend by ½ pixel, because something
+                          ;;; in the `raise` implementation is truncating at pixel
+                          ;;; granularity where instead it should be rounding.
+                        raise (/ va hb)))))); (3) Convert from pixels to ‘affected text’ heights. [HAT]
+                          ;;; No matter how accurate our `raise` factor, Emacs is going to snap the image
+                          ;;; to a pixel grid.  If the fractional part of `va` is close to ½ pixel and
+                          ;;; the font size small, then the image will look misaligned (too high or low)
+                          ;;; regardless of the direction in which Emacs snaps it. [MPG]
+          (unless image (setq image (math-preview--make-image payload ascent)))
           (overlay-put target-overlay 'category 'math-preview)
-          (overlay-put target-overlay 'display
-                       (list (list 'raise math-preview-raise)
-                             (cons 'image
-                                   (list :type 'svg
-                                         :data (gethash 'string table)
-                                         :scale math-preview-scale
-                                         :pointer 'hand
-                                         :margin math-preview-margin
-                                         :relief math-preview-relief))))))))))
+          (overlay-put target-overlay 'display (list (list 'raise raise) image))))))))
 
 (defun math-preview--submit (beg end string type inline)
   "Submit equation processing job.
@@ -863,7 +963,7 @@ Call `math-preview--process-input' for strings with carriage return."
           (id (1+ (or (-> math-preview--queue (-first-item) (car)) 0)))
           msg)
       (overlay-put target-overlay 'category 'math-preview-processing)
-      (setq math-preview--queue (-insert-at 0 (-cons* id target-overlay) math-preview--queue))
+      (setq math-preview--queue (-insert-at 0 (list id target-overlay inline) math-preview--queue))
       (setq msg (concat
                  (json-encode
                   (list :version math-preview--schema-version
@@ -1151,5 +1251,31 @@ Scale is changed by `N' times `math-preview-scale-increment'"
 
 
 (provide 'math-preview)
+
+;; NOTES
+;; ─────
+;;   BDF  Buffer default font.  Set by the likes of `(buffer-face-set :family "Noto Sans" :height 180)`,
+;;        for instance, subsequently toggled on/off by the command `buffer-face-mode`.
+;;
+;;   HAT  Height of ‘affected text’ for the display `raise` factor.  The manual says the `raise` factor
+;;        ‘is interpreted as a multiple of the height of the affected text.’
+;;        https://www.gnu.org/software/emacs/manual/html_node/elisp/Image-Descriptors.html
+;;
+;;        In our case, that appears to mean the height the buffer default font.  Setting a larger font
+;;        across multiple lines (using Font Lock) does not affect the consequent size of math images
+;;        generated within those lines.  (It should, of course, but that’s a separate matter.)
+;;
+;;   MPG  Misalignment owing to pixel granularity.  Maybe it will pass for now.  Possible corrections
+;;        include pre-shifting the image internally through SVG just enough to eliminate any fractional
+;;        part in the resulting `va`, thus pre-aligning it with the pixel raster.  But this would
+;;        complicate the code, not least by making the image dependent on the font size.
+;;
+;;   SBF  Scaling of images in response to buffer-font changes.  The calculation here is inexact.
+;;        Emacs resizes the images a bit differently, at least with Linux, which may affect
+;;        the resulting alignment.  Code inspection should reveal the correct algorithm.  TODO
+;;
+;;   VA · CSS `vertical-align` property.  “Raise (positive value) or lower (negative value)
+;;        the box by this distance.  The value `0cm` means the same as `baseline`.”
+;;        https://www.w3.org/TR/2011/REC-CSS2-20110607/visudet.html#line-height
 
 ;;; math-preview.el ends here
