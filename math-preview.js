@@ -13,10 +13,8 @@
 // For a full copy of the GNU General Public License
 // see <http://www.gnu.org/licenses/>.
 
-// https://blog.logrocket.com/how-to-use-ecmascript-modules-with-node-js/
-require = require("esm")(module);
 const jsonschema = require("jsonschema");
-const mathjax_full = require("mathjax-full");
+const mathjax_full = require("mathjax-full/es5/node-main.js");
 const readline = require("readline");
 const process = require("process");
 
